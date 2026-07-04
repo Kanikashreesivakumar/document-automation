@@ -67,7 +67,13 @@ def _ensure_templates():
             from services.prepare_all_templates import main as prepare_all
             prepare_all()
         except Exception as exc:
-            print(f"[DocumentGenerator] Template preparation failed: {exc}")
+            print(f"[DocumentGenerator] Legacy template preparation failed: {exc}")
+            
+        try:
+            import generate_clean_templates
+            generate_clean_templates.generate_all_clean_templates()
+        except Exception as exc:
+            print(f"[DocumentGenerator] Clean template preparation failed: {exc}")
 
         if "health_certificate.docx" in missing:
             try:
@@ -95,6 +101,15 @@ def _fill_one_docx(doc_type: str, template_file: str, output_name: str,
 
     try:
         ctx = get_context(doc_type, shipment_data)
+
+        # ── Runtime debug logging for trade_facility ─────────────────────────
+        if doc_type == "trade_facility":
+            print("=" * 80)
+            print("TRADE FACILITY CONTEXT")
+            for key, value in sorted(ctx.items()):
+                print(f"  {key}: {value!r}")
+            print("=" * 80)
+
         fill_docx_template(template_path, file_path_docx, ctx)
         return doc_type, output_name, file_path_docx, file_path_pdf
     except Exception as exc:

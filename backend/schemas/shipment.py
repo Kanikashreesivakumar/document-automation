@@ -155,6 +155,8 @@ class TradeFacilityCreate(BaseModel):
     container_to_cfs_start_time: Optional[str] = None
     e_seal_number: Optional[str] = None
     goods_description_verified: Optional[str] = "Yes"
+    branch_code: Optional[str] = None
+    bin_number: Optional[str] = None
 
 
 class TradeFacilityRead(TradeFacilityCreate):

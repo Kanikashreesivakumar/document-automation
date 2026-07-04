@@ -343,21 +343,23 @@ async def preview_pdf(shipment_id: str, doc_type: str, request: Request, backgro
                 save_proforma_invoice_ctrl(shipment_id, ProformaInvoiceCreate(**live_fields), db)
             elif doc_type == "trade_facility":
                 from schemas.shipment import TradeFacilityCreate
-                from services.shipment_service import save_trade_facility_ctrl
+                from controllers.shipment_controller import save_trade_facility_ctrl
                 save_trade_facility_ctrl(shipment_id, TradeFacilityCreate(**live_fields), db)
             elif doc_type == "export_insurance":
                 from schemas.shipment import ExportInsuranceCreate
-                from services.shipment_service import save_export_insurance_ctrl
+                from controllers.shipment_controller import save_export_insurance_ctrl
                 save_export_insurance_ctrl(shipment_id, ExportInsuranceCreate(**live_fields), db)
             elif doc_type == "health_certificate":
                 # Note: health certificate uses animal certificate schemas and annexure schemas
                 from schemas.shipment import AnimalCertificateCreate, AnimalAnnexureCreate
-                from services.shipment_service import save_animal_certificate_ctrl, save_animal_annexure_ctrl
+                from controllers.shipment_controller import save_animal_certificate_ctrl, save_animal_annexure_ctrl
                 save_animal_certificate_ctrl(shipment_id, AnimalCertificateCreate(**live_fields), db)
                 save_animal_annexure_ctrl(shipment_id, AnimalAnnexureCreate(**live_fields), db)
             db.commit()
     except Exception as e:
+        import traceback
         print(f"[Preview] Auto-save skipped or failed: {e}")
+        traceback.print_exc()
         # Ignore validation/save errors and just attempt generation with existing DB data
         pass
 

@@ -139,6 +139,8 @@ class TradeFacility(Base):
     container_to_cfs_start_time = Column(String(50))
     e_seal_number = Column(String(100))
     goods_description_verified = Column(String(10), default="Yes")
+    branch_code = Column(String(100))
+    bin_number = Column(String(100))
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

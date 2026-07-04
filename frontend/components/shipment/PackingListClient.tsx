@@ -3,7 +3,8 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { PackingListPreview } from './PackingListPreview';
+import { PDFPreviewViewer } from './PDFPreviewViewer';
+import { buildPackingListPreviewData } from './documentPreviewData';
 import { useShipmentData } from '../../hooks/useShipmentData';
 
 interface PackingListClientProps {
@@ -30,46 +31,62 @@ export default function PackingListClient({ shipmentId }: PackingListClientProps
   const wt   = shipment?.weight || {};
 
   const previewData = {
-    invoiceNo:           inv.invoice_no,
-    invoiceDate:         inv.invoice_date,
-    shippingBillNo:      inv.shipping_bill_no,
-    shippingBillDate:    inv.shipping_bill_date,
-    consigneeName:       buy.consignee_name,
-    buyerName:           buy.buyer_name,
-    buyerAddress:        buy.buyer_address,
-    buyerCountry:        buy.buyer_country,
-    preCarriageBy:       det.pre_carriage_by,
-    vesselFlightNo:      det.vessel_flight_no,
-    placeOfReceipt:      det.place_of_receipt,
-    portOfLoading:       det.port_of_loading,
-    portOfDischarge:     det.port_of_discharge,
-    finalDestination:    det.final_destination,
-    countryOfOrigin:     det.country_of_origin,
-    termsOfDelivery:     det.terms_of_delivery,
-    brandName:           prod.brand_name,
-    productName:         prod.product_name,
-    containerType:       prod.container_type,
-    containerNo:         prod.container_no,
-    cartons:             pkg.cartons,
-    traysPerCarton:      pkg.trays_per_carton,
-    eggsPerTray:         pkg.eggs_per_tray,
-    eggsPerCarton:       pkg.eggs_per_carton,
-    totalEggs:           pkg.total_eggs,
-    netWeightPerCarton:  wt.net_weight_per_carton,
-    grossWeightPerCarton: wt.gross_weight_per_carton,
-    netWeight:           wt.net_weight,
-    grossWeight:         wt.gross_weight,
+    invoice_no:                    inv.invoice_no,
+    invoice_date:                  inv.invoice_date,
+    buyer_order_no_date:           inv.buyer_order_no_date,
+    reference_proforma_invoice_no: inv.reference_proforma_invoice_no,
+    shipping_bill_no:              inv.shipping_bill_no,
+    shipping_bill_date:            inv.shipping_bill_date,
+    exporter_reference:            inv.exporter_reference,
+    other_reference:               inv.other_reference,
+    
+    consignee_name:    buy.consignee_name,
+    buyer_name:        buy.buyer_name,
+    buyer_address:     buy.buyer_address,
+    buyer_postal_code: buy.buyer_postal_code,
+    buyer_country:     buy.buyer_country,
+    
+    pre_carriage_by:              det.pre_carriage_by,
+    vessel_flight_no:             det.vessel_flight_no,
+    place_of_receipt:             det.place_of_receipt,
+    port_of_loading:              det.port_of_loading,
+    port_of_discharge:            det.port_of_discharge,
+    final_destination:            det.final_destination,
+    country_of_origin:            det.country_of_origin,
+    country_of_final_destination: det.country_of_final_destination,
+    terms_of_delivery:            det.terms_of_delivery,
+    
+    brand_name:           prod.brand_name,
+    product_name:         prod.product_name,
+    container_type:       prod.container_type,
+    container_no:         prod.container_no,
+    shipment_declaration: prod.shipment_declaration,
+    production_date:      prod.production_date,
+    expiry_date:          prod.expiry_date,
+    lot_number:           prod.lot_number,
+    epcg_licence_number:  prod.epcg_licence_number,
+    dt:                   prod.dt,
+    egg_size:             prod.egg_size,
+    pan_number:           prod.pan_number,
+    gstin:                prod.gstin,
+    hsn_code:             prod.hsn_code,
+    
+    cartons:          pkg.cartons,
+    trays_per_carton: pkg.trays_per_carton,
+    eggs_per_tray:    pkg.eggs_per_tray,
+    
+    rate_per_egg_usd: shipment?.pricing?.rate_per_egg_usd,
+    
+    net_weight_per_carton:   wt.net_weight_per_carton,
+    gross_weight_per_carton: wt.gross_weight_per_carton,
   };
 
   return (
     <div className="flex flex-col gap-6">
       {/* Preview Card */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="bg-gray-800 text-white px-4 py-2 text-xs font-semibold uppercase tracking-widest">
-          Packing List Preview — Auto-Generated from Shipment Data
-        </div>
-        <div className="overflow-auto max-h-[75vh] p-2">
-          <PackingListPreview data={previewData} />
+        <div className="overflow-auto max-h-[75vh]">
+          <PDFPreviewViewer shipmentId={shipmentId} docType="packing_list" data={previewData} />
         </div>
       </div>
 

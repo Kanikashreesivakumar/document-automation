@@ -87,6 +87,8 @@ class InvoiceInfo(Base):
     reference_proforma_invoice_no = Column(String(200))
     shipping_bill_no             = Column(String(100))
     shipping_bill_date           = Column(String(20))
+    exporter_reference           = Column(String(200))
+    other_reference              = Column(String(200))
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -222,6 +224,17 @@ class Product(Base):
     product_name   = Column(String(200))
     container_type = Column(String(100))
     container_no   = Column(String(100))
+    
+    shipment_declaration = Column(Text)
+    production_date      = Column(String(50))
+    expiry_date          = Column(String(50))
+    lot_number           = Column(String(100))
+    epcg_licence_number  = Column(String(100))
+    dt                   = Column(String(100))
+    egg_size             = Column(String(100))
+    pan_number           = Column(String(100))
+    gstin                = Column(String(100))
+    hsn_code             = Column(String(100))
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

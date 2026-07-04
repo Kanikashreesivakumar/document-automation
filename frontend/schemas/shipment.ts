@@ -27,6 +27,8 @@ export const shipmentDataSchema = z.object({
   reference_proforma_invoice_no: strO(),
   shipping_bill_no:              strO(),
   shipping_bill_date:            strO(),
+  exporter_reference:            strO(),
+  other_reference:               strO(),
 
   // ── Buyer / Consignee ──────────────────────────────────────────────────────
   consignee_name:   str("Consignee Name"),
@@ -51,6 +53,17 @@ export const shipmentDataSchema = z.object({
   product_name:   strO(),
   container_type: str("Container Type"),
   container_no:   str("Container No."),
+  
+  shipment_declaration: strO(),
+  production_date:      strO(),
+  expiry_date:          strO(),
+  lot_number:           strO(),
+  epcg_licence_number:  strO(),
+  dt:                   strO(),
+  egg_size:             strO(),
+  pan_number:           strO(),
+  gstin:                strO(),
+  hsn_code:             strO(),
 
   // ── Package ────────────────────────────────────────────────────────────────
   cartons:         intR("Cartons"),

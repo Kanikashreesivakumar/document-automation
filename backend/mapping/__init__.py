@@ -7,14 +7,14 @@ Architecture rules:
   • Every document generator calls one of these functions to get its context.
   • Adding a new document = adding a new function here. The DB schema never changes.
   • No database imports. No calculation logic. Pure data transformation.
+
+Only 6 documents are registered:
+  invoice, packing_list, proforma_invoice, trade_facility, export_insurance, health_certificate
 """
 from typing import Any, Optional
 
 
 # ─── Static exporter constants ────────────────────────────────────────────────
-# These values come from the uploaded template and NEVER change per shipment.
-# They are injected here so no user ever needs to type them.
-
 EXPORTER = {
     "name":    "RASI FOODS",
     "address": "NO. 1/219, MUDALAIPATTI, SALEM MAIN ROAD, NAMAKKAL -637003, TAMILNADU, INDIA",
@@ -26,7 +26,7 @@ EXPORTER = {
 }
 
 STATIC_PRODUCT = {
-    "description": "FRESH WHITE SHELL TABLE EGGS (CHICKEN).",
+    "description": "FRESH WHITE SHELL TABLE EGGS (CHICKEN). This shipment to covering under DBK scheme.",
     "dbk_clause":  "This shipment to covering under DBK scheme.",
 }
 
@@ -34,7 +34,6 @@ STATIC_PRODUCT = {
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _s(val: Any, default: str = "") -> str:
-    """Safe string: return str(val) or default if None/empty."""
     if val is None:
         return default
     return str(val).strip() or default
@@ -61,10 +60,6 @@ def _fmt_int(val: Any) -> str:
 # ─── Base context builder ─────────────────────────────────────────────────────
 
 def _build_base_context(shipment: dict) -> dict:
-    """
-    Build the shared context from a ShipmentFull dict.
-    All document-specific mappers call this first, then add their own keys.
-    """
     inv  = shipment.get("invoice_info") or {}
     buy  = shipment.get("buyer") or {}
     det  = shipment.get("shipment_details") or {}
@@ -73,34 +68,77 @@ def _build_base_context(shipment: dict) -> dict:
     pri  = shipment.get("pricing") or {}
     wt   = shipment.get("weight") or {}
     tf   = shipment.get("trade_facility") or {}
+    ei   = shipment.get("export_insurance") or {}
+    ac   = shipment.get("animal_certificate") or {}
+    aa   = shipment.get("animal_annexure") or {}
+    pi   = shipment.get("proforma_invoice") or {}
 
-    # ── Invoice info ──────────────────────────────────────────────────────────
-    invoice_no   = _s(inv.get("invoice_no"))
-    invoice_date = _s(inv.get("invoice_date"))
+    # Extract required values for dynamic Description of Goods
+    cartons_str = str(pkg.get("cartons") or 0)
+    trays_per_carton_str = str(pkg.get("trays_per_carton") or 0)
+    eggs_per_tray_str = str(pkg.get("eggs_per_tray") or 0)
+    eggs_per_carton_str = str(pkg.get("eggs_per_carton") or 0)
+    total_eggs_str = str(pkg.get("total_eggs") or 0)
+    
+    shipment_decl = _s(prod.get("shipment_declaration"), STATIC_PRODUCT["dbk_clause"])
+    container_type = _s(prod.get("container_type"))
+    pan_no = _s(prod.get("pan_number"), EXPORTER["pan"])
+    gstin_no = _s(prod.get("gstin"), EXPORTER["gstin"])
+    hsn_code = _s(prod.get("hsn_code"), EXPORTER["hsn"])
+    egg_size = _s(prod.get("egg_size"), "50 TO 55 GMS")
+    production_date = _s(prod.get("production_date")) or _s(pi.get("expiry_date"))
+    expiry_date = _s(prod.get("expiry_date")) or _s(pi.get("expiry_date"))
+    lot_number = _s(prod.get("lot_number"))
+    epcg_licence_no = _s(prod.get("epcg_licence_number"))
+    dt = _s(prod.get("dt"))
 
-    # ── Package quantities ────────────────────────────────────────────────────
-    cartons         = pkg.get("cartons") or 0
-    trays_per_carton = pkg.get("trays_per_carton") or 0
-    eggs_per_tray   = pkg.get("eggs_per_tray") or 0
-    eggs_per_carton = pkg.get("eggs_per_carton") or 0
-    total_eggs      = pkg.get("total_eggs") or 0
+    description_of_goods_text = f"""FRESH WHITE SHELL TABLE EGGS (CHICKEN).
+{shipment_decl}
+TOTAL {cartons_str} CARTONS,
+{trays_per_carton_str} TRAYS IN EACH CARTON
 
-    # ── Pricing ───────────────────────────────────────────────────────────────
-    rate_per_egg_usd = pri.get("rate_per_egg_usd") or 0
-    amount_usd       = pri.get("amount_usd") or 0
-    amount_in_words  = _s(pri.get("amount_in_words"))
+{eggs_per_tray_str} EGGS IN EACH TRAY
+{eggs_per_carton_str} EGGS IN EACH BOX
 
-    # ── Weight ────────────────────────────────────────────────────────────────
-    net_weight_per_carton   = wt.get("net_weight_per_carton") or 0
-    gross_weight_per_carton = wt.get("gross_weight_per_carton") or 0
-    net_weight   = wt.get("net_weight") or 0
-    gross_weight = wt.get("gross_weight") or 0
+EACH CARTON PRINTED WITH
+PRODUCTION DATE & EXPIRY DATE.
+
+TOTAL {cartons_str} X {eggs_per_carton_str}
+=
+{total_eggs_str} EGGS
+
+{container_type}
+
+PAN No:
+{pan_no}
+
+GSTIN No:
+{gstin_no}
+
+HSN CODE:
+{hsn_code}
+
+EGG SIZE:
+{egg_size}
+
+DATE OF PRODUCTION:
+{production_date}
+
+DATE OF EXPIRY:
+{expiry_date}
+
+LOT NO:
+{lot_number}
+
+EPCG LICENCE NO:
+{epcg_licence_no}
+
+DT:
+{dt}"""
 
     return {
-        # ── Shipment identity ────────────────────────────────────────────────
         "shipment_number": _s(shipment.get("shipment_number")),
-
-        # ── Static exporter (never from user) ────────────────────────────────
+        
         "exporter_name":    EXPORTER["name"],
         "exporter_address": EXPORTER["address"],
         "exporter_email":   EXPORTER["email"],
@@ -108,23 +146,30 @@ def _build_base_context(shipment: dict) -> dict:
         "exporter_pan":     EXPORTER["pan"],
         "exporter_hsn":     EXPORTER["hsn"],
         "exporter_iec":     EXPORTER["iec"],
+        "iec_no":           EXPORTER["iec"],
 
-        # ── Invoice info ─────────────────────────────────────────────────────
-        "invoice_no":                    invoice_no,
-        "invoice_date":                  invoice_date,
+        # Invoice Info
+        "invoice_no":                    _s(inv.get("invoice_no")),
+        "invoice_date":                  _s(inv.get("invoice_date")),
         "buyer_order_no_date":           _s(inv.get("buyer_order_no_date")),
         "reference_proforma_invoice_no": _s(inv.get("reference_proforma_invoice_no")),
         "shipping_bill_no":              _s(inv.get("shipping_bill_no")),
         "shipping_bill_date":            _s(inv.get("shipping_bill_date")),
+        "exporter_reference":            _s(inv.get("exporter_reference")),
+        "other_reference":               _s(inv.get("other_reference")),
 
-        # ── Buyer / Consignee ─────────────────────────────────────────────────
+        # Buyer / Consignee
         "consignee_name":   _s(buy.get("consignee_name")),
+        "consignee_address":_s(buy.get("buyer_address")), 
         "buyer_name":       _s(buy.get("buyer_name")),
         "buyer_address":    _s(buy.get("buyer_address")),
-        "buyer_postal_code": _s(buy.get("buyer_postal_code")),
+        "buyer_postal_code":_s(buy.get("buyer_postal_code")),
         "buyer_country":    _s(buy.get("buyer_country")),
+        "importer_name":    _s(buy.get("consignee_name")),
+        "importer_address": _s(buy.get("buyer_address")),
+        "addressee":        _s(buy.get("consignee_name")),
 
-        # ── Shipment details ─────────────────────────────────────────────────
+        # Shipment Details
         "pre_carriage_by":              _s(det.get("pre_carriage_by")),
         "vessel_flight_no":             _s(det.get("vessel_flight_no")),
         "place_of_receipt":             _s(det.get("place_of_receipt")),
@@ -132,371 +177,140 @@ def _build_base_context(shipment: dict) -> dict:
         "port_of_discharge":            _s(det.get("port_of_discharge")),
         "final_destination":            _s(det.get("final_destination")),
         "country_of_origin":            _s(det.get("country_of_origin")),
-        "country_of_final_destination": _s(det.get("country_of_final_destination")),
+        "country_of_destination":       _s(det.get("country_of_final_destination")),
+        "destination_country":          _s(det.get("country_of_final_destination")),
         "terms_of_delivery":            _s(det.get("terms_of_delivery")),
+        "means_of_transport":           _s(det.get("pre_carriage_by")) or "REEFER CONTAINER",
 
-        # ── Product ──────────────────────────────────────────────────────────
+        # Product & Package
         "brand_name":     _s(prod.get("brand_name")),
         "product_name":   _s(prod.get("product_name"), STATIC_PRODUCT["description"]),
+        "description_of_goods": description_of_goods_text,
+        "shipment_declaration": shipment_decl,
         "container_type": _s(prod.get("container_type")),
         "container_no":   _s(prod.get("container_no")),
+        "hsn_code":       _s(prod.get("hsn_code"), EXPORTER["hsn"]),
+        "pan_number":     _s(prod.get("pan_number"), EXPORTER["pan"]),
+        "gstin":          _s(prod.get("gstin"), EXPORTER["gstin"]),
+        "exporter_hsn":   _s(prod.get("hsn_code"), EXPORTER["hsn"]),
+        "exporter_pan":   _s(prod.get("pan_number"), EXPORTER["pan"]),
+        "exporter_gstin": _s(prod.get("gstin"), EXPORTER["gstin"]),
+        "egg_size":       _s(prod.get("egg_size"), "50 TO 55 GMS"),
+        "lot_number":     _s(prod.get("lot_number")),
+        "epcg_licence_number": _s(prod.get("epcg_licence_number")),
+        "dt":             _s(prod.get("dt")),
         
-        # ── Global Shared Container Info (from Trade Facility if available) ───
+        "total_cartons":     str(pkg.get("cartons") or 0),
+        "cartons":           str(pkg.get("cartons") or 0),
+        "number_of_cartons": str(pkg.get("cartons") or 0),
+        "total_packages":    str(pkg.get("cartons") or 0),
+        "packages_in_container": f"{pkg.get('cartons') or 0} CARTONS",
+        "type_of_packing":   "CARTON",
+        "total_eggs":        str(pkg.get("total_eggs") or 0),
+        
+        # Pricing & Weight
+        "rate_per_egg_usd":     _fmt_number(pri.get("rate_per_egg_usd"), 6),
+        "amount_usd":           _fmt_number(pri.get("amount_usd"), 2),
+        "amount_in_words":      _s(pri.get("amount_in_words")),
+        "net_weight":               _fmt_number(wt.get("net_weight"), 3),
+        "gross_weight":             _fmt_number(wt.get("gross_weight"), 3),
+        "gross_weight_per_egg":     _fmt_number(wt.get("gross_weight_per_carton"), 3),
+
+        # Trade Facility specifics
         "seal_no":        _s(tf.get("seal_number")),
+        "seal_nos":       _s(tf.get("seal_number")),
         "truck_no":       _s(tf.get("truck_number")),
+        "branch_code": _s(tf.get("branch_code")),
+        "bin_number": _s(tf.get("bin_number")),
+        "date_of_examination": _s(tf.get("date_of_examination")),
+        "starting_time": _s(tf.get("starting_time")),
+        "completion_time": _s(tf.get("completion_time")),
+        "time_taken": _s(tf.get("time_taken")),
+        "description_of_cargo": f"FRESH WHITE SHELL EGG  /{pkg.get('cartons') or 0} CARTONS",
+        "signatory_name": _s(tf.get("signatory_name")),
+        "signatory_designation": _s(tf.get("signatory_designation")),
+        "container_to_cfs_time": _s(tf.get("container_to_cfs_start_time")),
+        "e_seal_number": _s(tf.get("seal_number")),
+        "e_seal_colour": "White",
+        "goods_description_verified": _s(tf.get("goods_description_verified"), "Yes"),
+        "container_size": _s(prod.get("container_type")),
 
-        # ── Package quantities (raw + formatted) ─────────────────────────────
-        "cartons":           str(cartons),
-        "trays_per_carton":  str(trays_per_carton),
-        "eggs_per_tray":     str(eggs_per_tray),
-        "eggs_per_carton":   str(eggs_per_carton),
-        "total_eggs":        str(total_eggs),
-        "total_eggs_fmt":    _fmt_int(total_eggs),
+        # Export Insurance specifics
+        "date": _s(ei.get("date")),
+        "sum_assured": _s(ei.get("sum_assured")),
+        "dollar_value": _s(ei.get("dollar_value")),
+        "quantity_of_goods": f"{pkg.get('cartons') or 0} CARTONS",
+        "port_of_delivery": _s(ei.get("port_of_delivery")) or _s(det.get("port_of_discharge")),
+        "risk_cover": _s(ei.get("risk_cover"), "ICCA"),
+        "place_of_loading": _s(det.get("port_of_loading"), "Rasi Foods"),
+        "name_of_goods": _s(prod.get("product_name"), "Fresh white shell table eggs(chicken)."),
+        "respected_sir": _s(ei.get("respected_sir")),
 
-        # ── Pricing (raw + formatted) ─────────────────────────────────────────
-        "rate_per_egg_usd":     _fmt_number(rate_per_egg_usd, 6),
-        "amount_usd":           _fmt_number(amount_usd, 2),
-        "amount_usd_display":   f"USD {_fmt_number(amount_usd, 2)}",
-        "amount_in_words":      amount_in_words,
-
-        # ── Weight (raw + formatted) ──────────────────────────────────────────
-        "net_weight_per_carton":    _fmt_number(net_weight_per_carton, 3),
-        "gross_weight_per_carton":  _fmt_number(gross_weight_per_carton, 3),
-        "net_weight":               _fmt_number(net_weight, 3),
-        "gross_weight":             _fmt_number(gross_weight, 3),
-        "net_weight_display":       f"{_fmt_number(net_weight, 3)} KGS",
-        "gross_weight_display":     f"{_fmt_number(gross_weight, 3)} KGS",
-
-        # ── Static product text ───────────────────────────────────────────────
-        "product_description": STATIC_PRODUCT["description"],
-        "dbk_clause":          STATIC_PRODUCT["dbk_clause"],
+        # Health Certificate specifics
+        "serial_no": _s(ac.get("serial_no")),
+        "issue_date": _s(ac.get("issue_date")),
+        "date_of_inspection": _s(ac.get("date_of_inspection")),
+        "vet_officer_name": _s(ac.get("vet_officer_name")),
+        "vet_officer_designation": _s(ac.get("vet_officer_designation")),
+        "issuing_dept": "Department of Animal Husbandry",
+        "issuing_district": "Namakkal",
+        "issuing_govt": "Government of Tamil Nadu",
+        "port_of_shipment": _s(det.get("port_of_loading")),
+        
+        # Animal Annexure specifics
+        "producer_name": _s(aa.get("producer_name")),
+        "producer_address": _s(aa.get("producer_address")),
+        "certificate_no": _s(aa.get("certificate_number")),
+        "date_of_issue": _s(aa.get("date_of_issue")),
+        
+        # Proforma & Annexure
+        "proforma_invoice_no": _s(pi.get("proforma_invoice_number")),
+        "po_number": _s(pi.get("po_number")),
+        "po_date": _s(pi.get("po_date")),
+        "buyer_trn": _s(pi.get("buyer_trn")),
+        "consignee_trn": _s(pi.get("consignee_trn")),
+        "notify_party": _s(pi.get("notify_party")),
+        "notify_party_address": _s(pi.get("notify_party_address")),
+        "payment_terms": _s(pi.get("payment_terms")),
+        "expiry_date": _s(prod.get("expiry_date")) or _s(pi.get("expiry_date")),
+        "no_and_kind_of_packages": _s(pi.get("no_and_kind_of_packages")),
+        "intermediate_bank_name": _s(pi.get("intermediate_bank_name")),
+        "intermediate_bank_account_number": _s(pi.get("intermediate_bank_account_number")),
+        "intermediate_bank_swift": _s(pi.get("intermediate_bank_swift")),
+        "intermediate_bank_routing_number": _s(pi.get("intermediate_bank_routing_number")),
+        "correspondent_bank": _s(pi.get("correspondent_bank")),
+        "production_date": _s(prod.get("production_date")) or _s(pi.get("expiry_date")),
     }
 
-
-# ─── Document-specific context builders ───────────────────────────────────────
-
 def invoice_context(shipment: dict) -> dict:
-    """
-    Build the template context dict for the Invoice document.
-    The invoice template uses ALL fields from the base context.
-    """
-    ctx = _build_base_context(shipment)
-
-    pkg = shipment.get("package") or {}
-    cartons = pkg.get("cartons") or 0
-    eggs_per_carton = pkg.get("eggs_per_carton") or 0
-    total_eggs = pkg.get("total_eggs") or 0
-
-    # Invoice-specific compound description line used in the goods table
-    ctx["goods_description_line"] = (
-        f"{ctx['product_description']} {ctx['dbk_clause']}\n"
-        f"TOTAL {cartons} CARTONS, {ctx['trays_per_carton']} TRAYS IN EACH CARTON\n"
-        f"{ctx['eggs_per_tray']} EGGS IN EACH TRAY, {eggs_per_carton} EGGS IN EACH BOX\n"
-        f"EACH CARTON PRINTED WITH PRODUCTION DATE & EXPIRY DATE.(THREE MONTHS)\n"
-        f"TOTAL {cartons} X {eggs_per_carton} = {_fmt_int(total_eggs)} EGGS\n"
-        f"{ctx['container_type']} REEFER CONTAINER\n"
-        f"Pan No:{ctx['exporter_pan']}\n"
-        f"GSTIN No:{ctx['exporter_gstin']}\n"
-        f"HSN CODE NO:{ctx['exporter_hsn']}"
-    )
-
-    ctx["weight_summary_line"] = (
-        f"Each carton — {eggs_per_carton} Nos.\n"
-        f"{eggs_per_carton} x {cartons} cartons = Total {_fmt_int(total_eggs)} Nos.\n"
-        f"Nett Weight : {ctx['net_weight_display']}\n"
-        f"Gross Weight: {ctx['gross_weight_display']}"
-    )
-
-    return ctx
-
+    return _build_base_context(shipment)
 
 def packing_list_context(shipment: dict) -> dict:
-    """
-    Build the template context dict for the Packing List document.
-    Uses the same base — different compound fields.
-    """
-    ctx = _build_base_context(shipment)
-
-    pkg = shipment.get("package") or {}
-    cartons = pkg.get("cartons") or 0
-    eggs_per_carton = pkg.get("eggs_per_carton") or 0
-    total_eggs = pkg.get("total_eggs") or 0
-
-    ctx["goods_description_line"] = (
-        f"{ctx['product_description']}\n"
-        f"{ctx['dbk_clause']}\n"
-        f"TOTAL {cartons} CARTONS, {ctx['trays_per_carton']} TRAYS IN EACH CARTON\n"
-        f"{ctx['eggs_per_tray']} EGGS IN EACH TRAY, {eggs_per_carton} EGGS IN EACH BOX\n"
-        f"EACH CARTON PRINTED WITH PRODUCTION DATE & EXPIRY DATE.(THREE MONTHS)\n"
-        f"TOTAL {cartons} X {eggs_per_carton} = {_fmt_int(total_eggs)} EGGS\n"
-        f"{ctx['container_type']} REEFER CONTAINER\n"
-        f"Pan No:{ctx['exporter_pan']}  GSTIN No:{ctx['exporter_gstin']}\n"
-        f"HSN CODE NO:{ctx['exporter_hsn']}"
-    )
-
-    ctx["packing_remarks"] = (
-        f"Each carton\n"
-        f"{ctx['net_weight_per_carton']} Kgs Nett\n"
-        f"Each carton\n"
-        f"{ctx['gross_weight_per_carton']} Kgs Gross"
-    )
-
-    ctx["weight_summary_line"] = (
-        f"Each carton — {eggs_per_carton} Nos.\n"
-        f"{eggs_per_carton} x {cartons} cartons = Total {_fmt_int(total_eggs)} Nos.\n"
-        f"Nett Weight : {ctx['net_weight_display']}     "
-        f"Gross Weight: {ctx['gross_weight_display']}"
-    )
-
-    return ctx
-
+    return _build_base_context(shipment)
 
 def proforma_invoice_context(shipment: dict) -> dict:
-    """
-    Build the template context dict for the Proforma Invoice document.
-    Uses the base context + unique proforma fields.
-    """
-    ctx = _build_base_context(shipment)
-    pi = shipment.get("proforma_invoice") or {}
-
-    pkg = shipment.get("package") or {}
-    cartons = pkg.get("cartons") or 0
-    eggs_per_carton = pkg.get("eggs_per_carton") or 0
-    total_eggs = pkg.get("total_eggs") or 0
-
-    ctx.update({
-        "po_number":                        _s(pi.get("po_number")),
-        "po_date":                          _s(pi.get("po_date")),
-        "proforma_invoice_number":          _s(pi.get("proforma_invoice_number")),
-        "buyer_trn":                        _s(pi.get("buyer_trn")),
-        "consignee_trn":                    _s(pi.get("consignee_trn")),
-        "notify_party":                     _s(pi.get("notify_party")),
-        "notify_party_address":             _s(pi.get("notify_party_address")),
-        "payment_terms":                    _s(pi.get("payment_terms")),
-        "expiry_date":                      _s(pi.get("expiry_date")),
-        "no_and_kind_of_packages":          _s(pi.get("no_and_kind_of_packages")),
-        "intermediate_bank_name":           _s(pi.get("intermediate_bank_name")),
-        "intermediate_bank_account_number": _s(pi.get("intermediate_bank_account_number")),
-        "intermediate_bank_swift":          _s(pi.get("intermediate_bank_swift")),
-        "intermediate_bank_routing_number": _s(pi.get("intermediate_bank_routing_number")),
-        "correspondent_bank":               _s(pi.get("correspondent_bank")),
-    })
-
-    ctx["goods_description_line"] = (
-        f"{ctx['product_description']} {ctx['dbk_clause']}\n"
-        f"TOTAL {cartons} CARTONS, {ctx['trays_per_carton']} TRAYS IN EACH CARTON\n"
-        f"{ctx['eggs_per_tray']} EGGS IN EACH TRAY, {eggs_per_carton} EGGS IN EACH BOX\n"
-        f"EACH CARTON PRINTED WITH PRODUCTION DATE & EXPIRY DATE.(THREE MONTHS)\n"
-        f"TOTAL {cartons} X {eggs_per_carton} = {_fmt_int(total_eggs)} EGGS\n"
-        f"{ctx['container_type']} REEFER CONTAINER\n"
-        f"Pan No:{ctx['exporter_pan']}\n"
-        f"GSTIN No:{ctx['exporter_gstin']}\n"
-        f"HSN CODE NO:{ctx['exporter_hsn']}"
-    )
-
-    ctx["weight_summary_line"] = (
-        f"Each carton — {eggs_per_carton} Nos.\n"
-        f"{eggs_per_carton} x {cartons} cartons = Total {_fmt_int(total_eggs)} Nos.\n"
-        f"Nett Weight : {ctx['net_weight_display']}\n"
-        f"Gross Weight: {ctx['gross_weight_display']}"
-    )
-
-    return ctx
-
+    return _build_base_context(shipment)
 
 def trade_facility_context(shipment: dict) -> dict:
-    """Build context for Trade Facility (Step 4)."""
-    ctx = _build_base_context(shipment)
-    tf = shipment.get("trade_facility") or {}
-    er = shipment.get("examination_report") or {}
-    
-    # We map the inputs to the placeholders in trade_facility.docx
-    ctx.update({
-        "shipping_bill_no":      _s(ctx.get("shipping_bill_no")),
-        "exporter_name":         EXPORTER["name"],
-        "iec_no":                EXPORTER["iec"],
-        "exporter_gstin":        EXPORTER["gstin"],
-        "branch_code":           _s(tf.get("branch_code")) or _s(er.get("branch_code")) or "",
-        "bin_number":            EXPORTER["pan"],
-        "exporter_address":      EXPORTER["address"],
-        "date_of_examination":   _s(tf.get("date_of_examination")) or _s(ctx.get("invoice_date")),
-        "starting_time":         _s(tf.get("stuffing_start_time")),
-        "completion_time":       _s(tf.get("stuffing_completion_time")),
-        "time_taken":            _s(tf.get("stuffing_duration")),
-        "description_of_cargo":  f"{_s(ctx.get('product_name'))} / {_s(ctx.get('cartons'))} CARTONS".strip(" /"),
-        "country_of_destination": _s(ctx.get("country_of_final_destination")),
-        "signatory_name":        _s(tf.get("authorized_signatory_name")),
-        "signatory_designation": _s(tf.get("authorized_signatory_designation")),
-        "invoice_no":            _s(ctx.get("invoice_no")),
-        "invoice_date":          _s(ctx.get("invoice_date")),
-        "total_packages":        _s(ctx.get("cartons")),
-        "consignee_name":        _s(ctx.get("consignee_name")),
-        "consignee_address":     _s(ctx.get("buyer_address")),
-        "goods_description_verified": _s(tf.get("goods_description_verified"), "Yes"),
-        "container_no":          _s(ctx.get("container_no")),
-        "seal_no":               _s(tf.get("seal_number")),
-        "truck_no":              _s(tf.get("truck_number")),
-        "container_size":        _s(ctx.get("container_type")),
-        "packages_in_container": _s(ctx.get("cartons")),
-        "e_seal_number":         _s(tf.get("e_seal_number")),
-        "e_seal_colour":         "White",
-        "container_to_cfs_time": _s(tf.get("container_to_cfs_start_time")),
-    })
-    return ctx
-
-
+    return _build_base_context(shipment)
 
 def export_insurance_context(shipment: dict) -> dict:
-    """Build context for Export Insurance letter."""
-    ctx = _build_base_context(shipment)
-    ei = shipment.get("export_insurance") or {}
+    return _build_base_context(shipment)
 
-    # Auto-populate from shipment
-    invoice_no   = _s(ctx.get("invoice_no"))
-    invoice_date = _s(ctx.get("invoice_date"))
-    container_no = _s(ctx.get("container_no"))
-    cartons      = _s(ctx.get("cartons"))
-    product_name = _s(ctx.get("product_name"), STATIC_PRODUCT["description"])
-    port_of_loading = _s(ctx.get("port_of_loading"))
-
-    ctx.update({
-        # Static exporter fields
-        "exporter_name":    EXPORTER["name"],
-        "exporter_address": EXPORTER["address"],
-        "exporter_email":   EXPORTER["email"],
-        "exporter_gstin":   EXPORTER["gstin"],
-        "exporter_iec":     EXPORTER["iec"],
-        # Shipment-sourced auto-fields
-        "invoice_no":       invoice_no,
-        "invoice_date":     invoice_date,
-        "container_no":     container_no,
-        "seal_nos":         _s(ctx.get("seal_number")),
-        "truck_no":         _s(ctx.get("truck_number")),
-        "place_of_loading": f"Rasi Foods, ({port_of_loading})",
-        "name_of_goods":    product_name,
-        "quantity_of_goods": f"{cartons} CARTONS",
-        "coverage_route":   _s(ctx.get("country_of_final_destination")),
-        # Insurance-specific fields from ExportInsurance table
-        "date":                 _s(ei.get("date")),
-        "respected_sir":        _s(ei.get("respected_sir")),
-        "marine_policy_number": _s(ei.get("marine_policy_number")),
-        "cif_policy_number":    _s(ei.get("cif_policy_number")),
-        "risk_cover":           _s(ei.get("risk_cover"), "ICCA"),
-        "importer_name":        _s(ei.get("importer_name")),
-        "importer_address":     _s(ei.get("importer_address")),
-        "sum_assured":          _s(ei.get("sum_assured")),
-        "dollar_value":         _s(ei.get("dollar_value")),
-        "port_of_delivery":     _s(ei.get("port_of_delivery")),
-        "insurance_remarks":    _s(ei.get("insurance_remarks")),
-    })
-    return ctx
-
-
-def animal_certificate_context(shipment: dict) -> dict:
-    """
-    Build context for Animal Health Certificate (vet_certificate.docx).
-    Pulls auto-populated data from shipment + new animal_certificate table fields.
-    Static government text and certification paragraphs remain fixed in the template.
-    """
-    ctx = _build_base_context(shipment)
-    ac  = shipment.get("animal_certificate") or {}
-    buy = shipment.get("buyer") or {}
-    pi  = shipment.get("proforma_invoice") or {}
-    pkg = shipment.get("package") or {}
-
-    cartons = pkg.get("cartons") or 0
-
-    ctx.update({
-        # ── Static government heading (never editable) ─────────────────────
-        "issuing_dept":     "Animal Husbandry Department",
-        "issuing_govt":     "Government of Tamil Nadu",
-        "issuing_district": "Namakkal District",
-
-        # ── Document-specific user inputs ──────────────────────────────────
-        "serial_no":               _s(ac.get("serial_no")),
-        "issue_date":              _s(ac.get("issue_date")),
-        "date_of_inspection":      _s(ac.get("date_of_inspection")),
-        "vet_officer_name":        _s(ac.get("vet_officer_name"), "Dr. R. MANIVEL B.V.Sc"),
-        "vet_officer_designation": _s(ac.get("vet_officer_designation")),
-
-        # ── Auto-populated: Exporter ───────────────────────────────────────
-        "exporter_name":    EXPORTER["name"],
-        "exporter_address": EXPORTER["address"],
-
-        # ── Auto-populated: Importer / Consignee ───────────────────────────
-        "importer_name":    _s(buy.get("consignee_name")) or _s(buy.get("buyer_name")),
-        "importer_address": _s(buy.get("buyer_address")),
-        "addressee":        _s(buy.get("consignee_name")),
-
-        # ── Auto-populated: Product & Package ─────────────────────────────
-        "number_of_cartons":    str(cartons),
-        "description_of_goods": "Farm Fresh White Shell Eggs",
-        "type_of_packing":      "Eggs laid in Trays & Packed in Carton",
-        "gross_weight_per_egg": _s(ctx.get("gross_weight")),
-        "production_date":      _s(pi.get("expiry_date")) or "",
-        "expiry_date":          _s(pi.get("expiry_date")),
-
-        # ── Auto-populated: Shipment ───────────────────────────────────────
-        "port_of_shipment":  _s(ctx.get("port_of_loading")),
-        "container_no":      _s(ctx.get("container_no")),
-        "truck_no":          _s(ctx.get("truck_no")),
-        "invoice_no":        _s(ctx.get("invoice_no")),
-        "invoice_date":      _s(ctx.get("invoice_date")),
-
-        # ── Static transport / packing values ──────────────────────────────
-        "means_of_transport": "Reefer Container",
-    })
-    return ctx
-
-
-def animal_annexure_context(shipment: dict) -> dict:
-    """Build context for Animal Annexure document."""
-    ctx = _build_base_context(shipment)
-    aa  = shipment.get("animal_annexure") or {}
-    buy = shipment.get("buyer") or {}
-    pi  = shipment.get("proforma_invoice") or {}
-    ac  = shipment.get("animal_certificate") or {}
-
-    ctx.update({
-        "exporter_name":         EXPORTER["name"],
-        "exporter_address":      EXPORTER["address"],
-        "producer_name":         _s(aa.get("producer_name"), EXPORTER["name"]),
-        "producer_address":      _s(aa.get("producer_address"), EXPORTER["address"]),
-        "destination_country":   _s(ctx.get("country_of_final_destination")),
-        "container_no":          _s(ctx.get("container_no")),
-        "production_date":       _s(pi.get("expiry_date")),
-        "expiry_date":           _s(pi.get("expiry_date")),
-        "invoice_no":            _s(ctx.get("invoice_no")),
-        "invoice_date":          _s(ctx.get("invoice_date")),
-        "certificate_no":        _s(aa.get("certificate_number")) or _s(ac.get("serial_no")),
-        "date_of_issue":         _s(aa.get("date_of_issue")) or _s(ac.get("issue_date")),
-        "vet_officer_name":      _s(ac.get("vet_officer_name"), "Dr. R. MANIVEL B.V.Sc"),
-        "vet_officer_designation": _s(ac.get("vet_officer_designation")),
-    })
-    return ctx
-
-
-# ─── Registry: doc_type → context builder ─────────────────────────────────────
-# To add a new document: add its context function above and register it here.
+def health_certificate_context(shipment: dict) -> dict:
+    return _build_base_context(shipment)
 
 CONTEXT_BUILDERS = {
-    "invoice":             invoice_context,
-    "packing_list":        packing_list_context,
-    "proforma_invoice":    proforma_invoice_context,
-    "trade_facility":      trade_facility_context,
-    "export_insurance":    export_insurance_context,
-    "animal_certificate":  animal_certificate_context,
-    "animal_annexure":     animal_annexure_context,
+    "invoice": invoice_context,
+    "packing_list": packing_list_context,
+    "proforma_invoice": proforma_invoice_context,
+    "trade_facility": trade_facility_context,
+    "export_insurance": export_insurance_context,
+    "health_certificate": health_certificate_context,
 }
 
-
-def get_context(doc_type: str, shipment: dict) -> dict:
-    """
-    Public API for the mapping module.
-    Returns the template context for any registered document type.
-    """
+def get_context(doc_type: str, shipment_data: dict) -> dict:
     builder = CONTEXT_BUILDERS.get(doc_type)
-    if builder is None:
-        raise ValueError(f"Unknown document type: '{doc_type}'. "
-                         f"Registered types: {list(CONTEXT_BUILDERS.keys())}")
-    return builder(shipment)
+    if not builder:
+        raise ValueError(f"No context builder found for document type: {doc_type}")
+    return builder(shipment_data)

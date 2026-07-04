@@ -14,6 +14,11 @@ from docx.shared import Pt
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
+try:
+    from services.docx_template_engine import ensure_letterhead_header
+except ImportError:
+    from docx_template_engine import ensure_letterhead_header
+
 
 SOURCE = Path(__file__).parent.parent.parent / "invoice packing list.docx"
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -207,6 +212,7 @@ def build_templates():
     shutil.copy2(SOURCE, invoice_path)
     doc_inv = Document(str(invoice_path))
     build_invoice_template(doc_inv)
+    ensure_letterhead_header(doc_inv, Path(__file__).parent.parent.parent / "frame.jpeg")
     doc_inv.save(str(invoice_path))
     print(f"[TemplateBuilder] Built: {invoice_path}")
 
@@ -215,6 +221,7 @@ def build_templates():
     shutil.copy2(SOURCE, pl_path)
     doc_pl = Document(str(pl_path))
     build_packing_list_template(doc_pl)
+    ensure_letterhead_header(doc_pl, Path(__file__).parent.parent.parent / "frame.jpeg")
     doc_pl.save(str(pl_path))
     print(f"[TemplateBuilder] Built: {pl_path}")
 

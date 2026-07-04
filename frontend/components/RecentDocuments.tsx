@@ -11,20 +11,20 @@ export default function RecentDocuments() {
   const [docToDelete, setDocToDelete] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
-    loadDocuments();
-  }, []);
-
-  async function loadDocuments() {
+  const loadDocuments = async () => {
     try {
       const res = await shipmentApi.getRecentDocuments();
       setDocuments(res.data);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error("Failed to load documents");
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    loadDocuments();
+  }, []);
 
   const handleDeleteConfirm = async () => {
     if (!docToDelete) return;
@@ -32,7 +32,7 @@ export default function RecentDocuments() {
       await shipmentApi.deleteShipment(docToDelete);
       setDocuments(prev => prev.filter(d => d.shipment_id !== docToDelete));
       setToast({ message: 'Shipment and generated documents deleted successfully.', type: 'success' });
-    } catch (err) {
+    } catch {
       setToast({ message: 'Failed to delete shipment.', type: 'error' });
     } finally {
       setDocToDelete(null);
@@ -41,10 +41,13 @@ export default function RecentDocuments() {
 
   const handleDownload = async (url: string, filename: string) => {
     try {
-      // In a real app we might fetch the blob or redirect. 
-      // Since the backend serves the file directly, we can open it in a new tab or use an anchor.
-      const response = await fetch(process.env.NEXT_PUBLIC_API_URL + url.replace('/api', ''));
-      if (!response.ok) throw new Error('Download failed');
+      // url is like "/api/shipments/{id}/download-all" (from backend)
+      // Build full URL: http://localhost:8000 + /api/shipments/{id}/download-all
+      const backendBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api')
+        .replace(/\/api$/, ''); // strip trailing /api to get just the host
+      const fullUrl = backendBase + url; // e.g. http://localhost:8000/api/shipments/.../download-all
+      const response = await fetch(fullUrl);
+      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
       
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -60,6 +63,7 @@ export default function RecentDocuments() {
       setToast({ message: 'Failed to download ZIP.', type: 'error' });
     }
   };
+
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

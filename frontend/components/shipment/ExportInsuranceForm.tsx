@@ -10,7 +10,7 @@ import { Toast } from '../ui/Toast';
 import { FormNavigator } from './FormNavigator';
 import { shipmentApi } from '../../services/shipmentApi';
 import { useShipmentData } from '../../hooks/useShipmentData';
-import { ExportInsurancePreview } from './ExportInsurancePreview';
+import { PDFPreviewViewer } from './PDFPreviewViewer';
 import { exportInsuranceSchema, ExportInsuranceFormData } from '../../schemas/exportInsurance';
 
 interface ExportInsuranceFormProps {
@@ -73,43 +73,11 @@ export default function ExportInsuranceForm({ shipmentId }: ExportInsuranceFormP
     try {
       await shipmentApi.saveExportInsurance(shipmentId, data as any);
       // Next is Animal Health Certificate (Step 6)
-      router.push(`/shipment/${shipmentId}/animal-certificate`);
+      router.push(`/shipment/${shipmentId}/health-certificate`);
     } catch {
       setToast({ message: 'Failed to save Export Insurance.', type: 'error' });
       setIsSubmitting(false);
     }
-  };
-
-  // Compile data for the preview
-  const previewData = {
-    // Static fields
-    exporter_name: "RASI FOODS",
-    exporter_address: "NO. 1/219, MUDALAIPATTI, SALEM MAIN ROAD, NAMAKKAL -637003, TAMILNADU, INDIA",
-    exporter_email: "rasieggs@gmail.com",
-    
-    // Derived from shipment
-    invoice_no: shipment?.invoice_info?.invoice_no,
-    invoice_date: shipment?.invoice_info?.invoice_date,
-    container_no: shipment?.product?.container_no,
-    seal_nos: shipment?.trade_facility?.seal_number,
-    truck_no: shipment?.trade_facility?.truck_number,
-    place_of_loading: `Rasi Foods, (${shipment?.shipment_details?.port_of_loading || ''})`,
-    name_of_goods: shipment?.product?.product_name || "FRESH WHITE SHELL TABLE EGGS (CHICKEN).",
-    quantity_of_goods: `${shipment?.package?.cartons || ''} CARTONS`,
-    coverage_route: shipment?.shipment_details?.country_of_final_destination,
-
-    // Form data
-    date: w_date,
-    respected_sir: w_respected_sir,
-    marine_policy_number: w_marine_policy_number,
-    cif_policy_number: w_cif_policy_number,
-    risk_cover: w_risk_cover,
-    importer_name: w_importer_name,
-    importer_address: w_importer_address,
-    sum_assured: w_sum_assured,
-    dollar_value: w_dollar_value,
-    port_of_delivery: w_port_of_delivery,
-    insurance_remarks: w_insurance_remarks,
   };
 
   if (loading) return <div>Loading...</div>;
@@ -176,8 +144,8 @@ export default function ExportInsuranceForm({ shipmentId }: ExportInsuranceFormP
           />
         </form>
 
-        <div className="flex-1 bg-gray-50 p-6 rounded-xl border border-gray-200 overflow-x-auto min-w-[850px] shadow-inner">
-          <ExportInsurancePreview data={previewData} />
+        <div className="flex-1 bg-gray-50 rounded-xl overflow-x-auto min-w-[700px] shadow-inner">
+          <PDFPreviewViewer shipmentId={shipmentId} docType="export_insurance" data={control._formValues} />
         </div>
       </div>
     </>

@@ -11,7 +11,7 @@ import { Toast } from '../ui/Toast';
 import { FormNavigator } from './FormNavigator';
 import { shipmentApi } from '../../services/shipmentApi';
 import { useShipmentData } from '../../hooks/useShipmentData';
-import { TradeFacilityPreview } from './TradeFacilityPreview';
+import { PDFPreviewViewer } from './PDFPreviewViewer';
 
 interface TradeFacilityFormProps {
   shipmentId: string;
@@ -118,45 +118,6 @@ export default function TradeFacilityForm({ shipmentId }: TradeFacilityFormProps
     }
   };
 
-  // Compile data for the preview
-  const previewData = {
-    // Basic shipment details
-    shipping_bill_no: shipment?.invoice_info?.shipping_bill_no,
-    exporter_name: "RASI FOODS",
-    iec_no: "3215008319",
-    exporter_gstin: "33AASFR2685Q1Z8",
-    branch_code: shipment?.examination_report?.branch_code || "",
-    bin_number: "AASFR2685Q",
-    exporter_address: "NO. 1/219, MUDALAIPATTI, SALEM MAIN ROAD, NAMAKKAL -637003, TAMILNADU, INDIA",
-
-    // Cargo and shipping details
-    description_of_cargo: shipment?.product?.product_name
-      ? `${shipment.product.product_name} / ${shipment?.package?.cartons || ''} CARTONS`.replace(/ \/ $/, '')
-      : `FRESH WHITE SHELL TABLE EGGS (CHICKEN). / ${shipment?.package?.cartons || ''} CARTONS`,
-    country_of_destination: shipment?.shipment_details?.country_of_final_destination,
-    invoice_no: shipment?.invoice_info?.invoice_no,
-    invoice_date: shipment?.invoice_info?.invoice_date,
-    total_packages: `${shipment?.package?.cartons || ''} CARTONS`,
-    consignee_name: shipment?.buyer?.consignee_name,
-    consignee_address: shipment?.buyer?.buyer_address,
-    container_no: shipment?.product?.container_no,
-    container_type: shipment?.product?.container_type,
-    number_of_cartons: shipment?.package?.cartons,
-
-    // Form data from Trade Facility step
-    date_of_examination: w_date_of_examination,
-    stuffing_start_time: w_start_time,
-    stuffing_completion_time: w_completion_time,
-    stuffing_duration: w_duration,
-    authorized_signatory_name: w_signatory_name,
-    authorized_signatory_designation: w_signatory_designation,
-    seal_number: w_seal_number,
-    truck_number: w_truck_number,
-    container_to_cfs_start_time: w_cfs_time,
-    e_seal_number: w_e_seal,
-    goods_description_verified: w_verified,
-  };
-
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -216,8 +177,8 @@ export default function TradeFacilityForm({ shipmentId }: TradeFacilityFormProps
           />
         </form>
 
-        <div className="flex-1 w-full bg-gray-100 rounded-xl overflow-x-auto min-h-[600px] flex justify-center py-8 border border-gray-200">
-          <TradeFacilityPreview data={previewData} />
+        <div className="flex-1 w-full bg-gray-100 rounded-xl overflow-x-auto min-h-[600px] flex justify-center border border-gray-200">
+          <PDFPreviewViewer shipmentId={shipmentId} docType="trade_facility" data={control._formValues} />
         </div>
       </div>
     </>

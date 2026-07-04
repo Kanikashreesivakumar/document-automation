@@ -12,7 +12,7 @@ import { Toast } from '../ui/Toast';
 import { FormNavigator } from './FormNavigator';
 import { shipmentApi } from '../../services/shipmentApi';
 import { useShipmentData } from '../../hooks/useShipmentData';
-import { ProformaInvoicePreview } from './ProformaInvoicePreview';
+import { PDFPreviewViewer } from './PDFPreviewViewer';
 import { numberToWords } from '../../utils/numberToWords';
 
 interface ProformaInvoiceFormProps {
@@ -75,63 +75,6 @@ export default function ProformaInvoiceFormComponent({ shipmentId }: ProformaInv
   const wIntermediateBankSwift       = useWatch({ control, name: 'intermediate_bank_swift' });
   const wIntermediateBankRouting     = useWatch({ control, name: 'intermediate_bank_routing_number' });
   const wCorrespondentBank           = useWatch({ control, name: 'correspondent_bank' });
-
-  // Build shipment-derived preview data (auto-reused, never re-asked)
-  const inv  = shipment?.invoice_info || {};
-  const buy  = shipment?.buyer || {};
-  const det  = shipment?.shipment_details || {};
-  const prod = shipment?.product || {};
-  const pkg  = shipment?.package || {};
-  const pri  = shipment?.pricing || {};
-  const wt   = shipment?.weight || {};
-
-  const amountUSD   = pri.amount_usd || 0;
-  const amountWords = amountUSD > 0 ? numberToWords(amountUSD) : '—';
-
-  const previewData = {
-    // From Shipment — auto-reused
-    invoiceNo:           inv.invoice_no,
-    invoiceDate:         inv.invoice_date,
-    consigneeName:       buy.consignee_name,
-    buyerName:           buy.buyer_name,
-    buyerAddress:        buy.buyer_address,
-    buyerCountry:        buy.buyer_country,
-    preCarriageBy:       det.pre_carriage_by,
-    vesselFlightNo:      det.vessel_flight_no,
-    portOfLoading:       det.port_of_loading,
-    portOfDischarge:     det.port_of_discharge,
-    finalDestination:    det.final_destination,
-    countryOfOrigin:     det.country_of_origin,
-    termsOfDelivery:     det.terms_of_delivery,
-    brandName:           prod.brand_name,
-    productName:         prod.product_name,
-    containerType:       prod.container_type,
-    containerNo:         prod.container_no,
-    cartons:             pkg.cartons,
-    eggsPerCarton:       pkg.eggs_per_carton,
-    totalEggs:           pkg.total_eggs,
-    ratePerEggUsd:       pri.rate_per_egg_usd,
-    amountUsd:           amountUSD,
-    amountInWords:       amountWords,
-    netWeight:           wt.net_weight,
-    grossWeight:         wt.gross_weight,
-    // Proforma-specific — from live form
-    proformaInvoiceNumber:          wProformaInvoiceNumber,
-    poNumber:                       wPoNumber,
-    poDate:                         wPoDate,
-    buyerTrn:                       wBuyerTrn,
-    consigneeTrn:                   wConsigneeTrn,
-    notifyParty:                    wNotifyParty,
-    notifyPartyAddress:             wNotifyPartyAddress,
-    paymentTerms:                   wPaymentTerms,
-    expiryDate:                     wExpiryDate,
-    noAndKindOfPackages:            wNoAndKindOfPackages,
-    intermediateBankName:           wIntermediateBankName,
-    intermediateBankAccountNumber:  wIntermediateBankAccountNo,
-    intermediateBankSwift:          wIntermediateBankSwift,
-    intermediateBankRoutingNumber:  wIntermediateBankRouting,
-    correspondentBank:              wCorrespondentBank,
-  };
 
   const onSubmit = async (data: ProformaInvoiceForm) => {
     setIsSubmitting(true);
@@ -308,11 +251,8 @@ export default function ProformaInvoiceFormComponent({ shipmentId }: ProformaInv
         {/* ── Live Preview Panel ─────────────────────────────────────────────── */}
         <div className="hidden xl:block w-[580px] shrink-0">
           <div className="sticky top-6">
-            <div className="bg-gray-800 text-white px-4 py-2 text-xs font-semibold uppercase tracking-widest rounded-t-xl">
-              Live Proforma Invoice Preview
-            </div>
             <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm overflow-auto max-h-[85vh]">
-              <ProformaInvoicePreview data={previewData} />
+              <PDFPreviewViewer shipmentId={shipmentId} docType="proforma_invoice" data={control._formValues} />
             </div>
           </div>
         </div>

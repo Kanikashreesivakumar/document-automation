@@ -14,7 +14,7 @@ import { FormNavigator } from './FormNavigator';
 import { numberToWords } from '../../utils/numberToWords';
 import { shipmentApi } from '../../services/shipmentApi';
 import { useShipmentData } from '../../hooks/useShipmentData';
-import { InvoicePreview, EXPORTER } from './InvoicePreview';
+import { PDFPreviewViewer } from './PDFPreviewViewer';
 
 const DEFAULT_VALUES: Partial<ShipmentDataForm> = {
   pre_carriage_by:              'REEFER CONTAINER',
@@ -70,6 +70,8 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
       reference_proforma_invoice_no: inv.reference_proforma_invoice_no || '',
       shipping_bill_no:              inv.shipping_bill_no || '',
       shipping_bill_date:            inv.shipping_bill_date || '',
+      exporter_reference:            inv.exporter_reference || '',
+      other_reference:               inv.other_reference || '',
 
       consignee_name:    buy.consignee_name || '',
       buyer_name:        buy.buyer_name || '',
@@ -91,6 +93,16 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
       product_name:   prod.product_name || DEFAULT_VALUES.product_name,
       container_type: prod.container_type || DEFAULT_VALUES.container_type,
       container_no:   prod.container_no || '',
+      shipment_declaration: prod.shipment_declaration || '',
+      production_date:      prod.production_date || '',
+      expiry_date:          prod.expiry_date || '',
+      lot_number:           prod.lot_number || '',
+      epcg_licence_number:  prod.epcg_licence_number || '',
+      dt:                   prod.dt || '',
+      egg_size:             prod.egg_size || '',
+      pan_number:           prod.pan_number || '',
+      gstin:                prod.gstin || '',
+      hsn_code:             prod.hsn_code || '',
 
       cartons:          pkg.cartons || undefined,
       trays_per_carton: pkg.trays_per_carton || DEFAULT_VALUES.trays_per_carton,
@@ -135,6 +147,18 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
   const wProductName                = useWatch({ control, name: 'product_name' });
   const wContainerType              = useWatch({ control, name: 'container_type' });
   const wContainerNo                = useWatch({ control, name: 'container_no' });
+  const wShipmentDeclaration        = useWatch({ control, name: 'shipment_declaration' });
+  const wProductionDate             = useWatch({ control, name: 'production_date' });
+  const wExpiryDate                 = useWatch({ control, name: 'expiry_date' });
+  const wLotNumber                  = useWatch({ control, name: 'lot_number' });
+  const wEpcgLicenceNumber          = useWatch({ control, name: 'epcg_licence_number' });
+  const wDt                         = useWatch({ control, name: 'dt' });
+  const wEggSize                    = useWatch({ control, name: 'egg_size' });
+  const wPanNumber                  = useWatch({ control, name: 'pan_number' });
+  const wGstin                      = useWatch({ control, name: 'gstin' });
+  const wHsnCode                    = useWatch({ control, name: 'hsn_code' });
+  const wExporterReference          = useWatch({ control, name: 'exporter_reference' });
+  const wOtherReference             = useWatch({ control, name: 'other_reference' });
 
   // ── Auto-calculated values (pure, no side effects) ─────────────────────────
   const eggsPerCarton = Math.round(Number(traysPerCarton) * Number(eggsPerTray));
@@ -195,10 +219,10 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
           {/* ── Static exporter banner ────────────────────────────────────── */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
             <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Exporter (Fixed)</p>
-            <p className="text-sm text-blue-900 font-medium">{EXPORTER.name}</p>
-            <p className="text-xs text-blue-700">{EXPORTER.address}</p>
+            <p className="text-sm text-blue-900 font-medium">RASI FOODS</p>
+            <p className="text-xs text-blue-700">NO. 1/219, MUDALAIPATTI, SALEM MAIN ROAD, NAMAKKAL -637003, TAMILNADU, INDIA</p>
             <p className="text-xs text-blue-600 mt-0.5">
-              GSTIN: {EXPORTER.gstin} &nbsp;|&nbsp; PAN: {EXPORTER.pan} &nbsp;|&nbsp; HSN: {EXPORTER.hsn}
+              GSTIN: 33AASFR2685Q1Z8 &nbsp;|&nbsp; PAN: AASFR2685Q &nbsp;|&nbsp; HSN: 04072100
             </p>
           </div>
 
@@ -239,6 +263,16 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
               id="shipping_bill_date"
               register={register('shipping_bill_date')}
               placeholder="e.g. 30.06.2026"
+            />
+            <Input
+              label="Exporter Reference"
+              id="exporter_reference"
+              register={register('exporter_reference')}
+            />
+            <Input
+              label="Other Reference"
+              id="other_reference"
+              register={register('other_reference')}
             />
           </div>
 
@@ -327,12 +361,24 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
               register={register('country_of_final_destination')}
               error={errors.country_of_final_destination?.message}
             />
-            <Input
-              label="Terms of Delivery"
-              id="terms_of_delivery"
-              register={register('terms_of_delivery')}
-              error={errors.terms_of_delivery?.message}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-gray-800">Terms of Delivery</label>
+              <select
+                id="terms_of_delivery"
+                {...register('terms_of_delivery')}
+                className={`
+                  px-3 py-2 text-gray-900 border rounded-md shadow-sm bg-white
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                  ${errors.terms_of_delivery ? 'border-red-400 bg-red-50' : 'border-gray-400'}
+                `}
+              >
+                <option value="CIF SALALAH">CIF SALALAH</option>
+                <option value="CNF">CNF</option>
+              </select>
+              {errors.terms_of_delivery && (
+                <span className="text-xs text-red-600 font-medium">{errors.terms_of_delivery.message}</span>
+              )}
+            </div>
           </div>
 
           {/* ── 4. Product ────────────────────────────────────────────────── */}
@@ -362,6 +408,61 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
               id="product_name"
               register={register('product_name')}
               className="sm:col-span-2 lg:col-span-4"
+            />
+            <Textarea
+              label="Shipment Declaration"
+              id="shipment_declaration"
+              register={register('shipment_declaration')}
+              rows={2}
+              className="sm:col-span-2 lg:col-span-4"
+            />
+            <Input
+              label="Production Date"
+              id="production_date"
+              register={register('production_date')}
+            />
+            <Input
+              label="Expiry Date"
+              id="expiry_date"
+              register={register('expiry_date')}
+            />
+            <Input
+              label="Lot Number"
+              id="lot_number"
+              register={register('lot_number')}
+            />
+            <Input
+              label="EPCG Licence Number"
+              id="epcg_licence_number"
+              register={register('epcg_licence_number')}
+            />
+            <Input
+              label="DT"
+              id="dt"
+              register={register('dt')}
+            />
+            <Input
+              label="Egg Size"
+              id="egg_size"
+              register={register('egg_size')}
+            />
+            <Input
+              label="PAN Number"
+              id="pan_number"
+              register={register('pan_number')}
+              hint="Leave blank to use default Company PAN"
+            />
+            <Input
+              label="GSTIN"
+              id="gstin"
+              register={register('gstin')}
+              hint="Leave blank to use default Company GSTIN"
+            />
+            <Input
+              label="HSN Code"
+              id="hsn_code"
+              register={register('hsn_code')}
+              hint="Leave blank to use default Company HSN"
             />
           </div>
 
@@ -465,45 +566,8 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
         {/* ── Live Preview Panel ──────────────────────────────────────────── */}
         <div className="hidden xl:block w-[580px] shrink-0">
           <div className="sticky top-6">
-            <div className="bg-gray-800 text-white px-4 py-2 text-xs font-semibold uppercase tracking-widest rounded-t-xl">
-              Live Invoice Preview
-            </div>
             <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm overflow-auto max-h-[85vh]">
-              <InvoicePreview data={{
-                invoiceNo:                  wInvoiceNo,
-                invoiceDate:                wInvoiceDate,
-                buyerOrderNoDate:           wBuyerOrderNoDate,
-                referenceProformaInvoiceNo: wRefProformaInvoiceNo,
-                shippingBillNo:             wShippingBillNo,
-                shippingBillDate:           wShippingBillDate,
-                consigneeName:              wConsigneeName,
-                buyerName:                  wBuyerName,
-                buyerAddress:               wBuyerAddress,
-                buyerPostalCode:            wBuyerPostalCode,
-                buyerCountry:               wBuyerCountry,
-                preCarriageBy:              wPreCarriageBy,
-                vesselFlightNo:             wVesselFlightNo,
-                placeOfReceipt:             wPlaceOfReceipt,
-                portOfLoading:              wPortOfLoading,
-                portOfDischarge:            wPortOfDischarge,
-                finalDestination:           wFinalDestination,
-                countryOfOrigin:            wCountryOfOrigin,
-                countryOfFinalDestination:  wCountryOfFinalDestination,
-                termsOfDelivery:            wTermsOfDelivery,
-                brandName:                  wBrandName,
-                productName:                wProductName,
-                containerType:              wContainerType,
-                containerNo:                wContainerNo,
-                cartons:                    Number(cartons),
-                traysPerCarton:             Number(traysPerCarton),
-                eggsPerCarton,
-                totalEggs,
-                ratePerEggUsd:              Number(ratePerEgg),
-                amountUsd:                  amountUSD,
-                amountInWords:              amountWords,
-                netWeight,
-                grossWeight,
-              }} />
+              <PDFPreviewViewer shipmentId={shipmentId} docType="invoice" data={control._formValues} />
             </div>
           </div>
         </div>

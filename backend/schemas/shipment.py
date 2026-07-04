@@ -48,6 +48,8 @@ class ShipmentDataCreate(BaseModel):
     reference_proforma_invoice_no: Optional[str] = None
     shipping_bill_no: Optional[str] = None
     shipping_bill_date: Optional[str] = None
+    exporter_reference: Optional[str] = None
+    other_reference: Optional[str] = None
 
     # Buyer / Consignee
     consignee_name: Optional[str] = None
@@ -72,6 +74,17 @@ class ShipmentDataCreate(BaseModel):
     product_name: Optional[str] = None
     container_type: Optional[str] = None
     container_no: Optional[str] = None
+    
+    shipment_declaration: Optional[str] = None
+    production_date: Optional[str] = None
+    expiry_date: Optional[str] = None
+    lot_number: Optional[str] = None
+    epcg_licence_number: Optional[str] = None
+    dt: Optional[str] = None
+    egg_size: Optional[str] = None
+    pan_number: Optional[str] = None
+    gstin: Optional[str] = None
+    hsn_code: Optional[str] = None
 
     # Package (user inputs only; eggs_per_carton & total_eggs are calculated)
     cartons: Optional[int] = None
@@ -97,6 +110,8 @@ class InvoiceInfoRead(BaseModel):
     reference_proforma_invoice_no: Optional[str] = None
     shipping_bill_no: Optional[str] = None
     shipping_bill_date: Optional[str] = None
+    exporter_reference: Optional[str] = None
+    other_reference: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = {"from_attributes": True}
@@ -225,6 +240,16 @@ class ProductRead(BaseModel):
     product_name: Optional[str] = None
     container_type: Optional[str] = None
     container_no: Optional[str] = None
+    shipment_declaration: Optional[str] = None
+    production_date: Optional[str] = None
+    expiry_date: Optional[str] = None
+    lot_number: Optional[str] = None
+    epcg_licence_number: Optional[str] = None
+    dt: Optional[str] = None
+    egg_size: Optional[str] = None
+    pan_number: Optional[str] = None
+    gstin: Optional[str] = None
+    hsn_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = {"from_attributes": True}

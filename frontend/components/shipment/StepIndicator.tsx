@@ -10,13 +10,12 @@ interface StepIndicatorProps {
 
 export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, shipmentId }) => {
   const steps = [
-    { num: 1,  name: 'Invoice',          path: 'invoice' },
-    { num: 2,  name: 'Packing List',     path: 'packing-list' },
-    { num: 3,  name: 'Proforma',         path: 'proforma-invoice' },
-    { num: 4,  name: 'Trade Facility',   path: 'trade-facility' },
-    { num: 5,  name: 'Export Insurance', path: 'insurance' },
-    { num: 6,  name: 'Animal Health',    path: 'animal-certificate' },
-    { num: 7,  name: 'Animal Annexure',  path: 'animal-annexure' },
+    { num: 1, name: 'Invoice',          path: 'invoice' },
+    { num: 2, name: 'Packing List',     path: 'packing-list' },
+    { num: 3, name: 'Proforma',         path: 'proforma-invoice' },
+    { num: 4, name: 'Trade Facility',   path: 'trade-facility' },
+    { num: 5, name: 'Export Insurance', path: 'insurance' },
+    { num: 6, name: 'Health Cert',      path: 'health-certificate' },
   ];
 
   return (

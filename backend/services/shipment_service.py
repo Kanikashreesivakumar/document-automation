@@ -193,6 +193,8 @@ def save_shipment_data(shipment_id: str, data: ShipmentDataCreate, db: Session) 
         "reference_proforma_invoice_no": d.get("reference_proforma_invoice_no"),
         "shipping_bill_no":              d.get("shipping_bill_no"),
         "shipping_bill_date":            d.get("shipping_bill_date"),
+        "exporter_reference":            d.get("exporter_reference"),
+        "other_reference":               d.get("other_reference"),
     })
 
     BuyerRepository(db).upsert(shipment_id, {
@@ -220,6 +222,16 @@ def save_shipment_data(shipment_id: str, data: ShipmentDataCreate, db: Session) 
         "product_name":   d.get("product_name"),
         "container_type": d.get("container_type"),
         "container_no":   d.get("container_no"),
+        "shipment_declaration": d.get("shipment_declaration"),
+        "production_date":      d.get("production_date"),
+        "expiry_date":          d.get("expiry_date"),
+        "lot_number":           d.get("lot_number"),
+        "epcg_licence_number":  d.get("epcg_licence_number"),
+        "dt":                   d.get("dt"),
+        "egg_size":             d.get("egg_size"),
+        "pan_number":           d.get("pan_number"),
+        "gstin":                d.get("gstin"),
+        "hsn_code":             d.get("hsn_code"),
     })
 
     PackageRepository(db).upsert(shipment_id, {
@@ -334,6 +346,34 @@ def generate_documents(shipment_id: str, db: Session) -> dict:
     if not shipment:
         return {"success": False, "error": "Shipment not found"}
 
+    missing_fields = []
+    
+    print("=== VALIDATION OBJECT ===")
+    import pprint
+    pprint.pprint(_shipment_to_dict(shipment))
+    print("=========================")
+
+    
+    if not shipment.invoice_info or not shipment.invoice_info.invoice_no:
+        missing_fields.append("invoice_no")
+    if not shipment.invoice_info or not shipment.invoice_info.invoice_date:
+        missing_fields.append("invoice_date")
+    if not shipment.buyer or not shipment.buyer.consignee_name:
+        missing_fields.append("consignee_name")
+    if not shipment.buyer or not shipment.buyer.buyer_country:
+        missing_fields.append("buyer_country")
+    if not shipment.shipment_details or not shipment.shipment_details.port_of_loading:
+        missing_fields.append("port_of_loading")
+    if not shipment.product or not shipment.product.container_no:
+        missing_fields.append("container_no")
+    if not shipment.package or not shipment.package.cartons:
+        missing_fields.append("cartons")
+    if not shipment.pricing or not shipment.pricing.rate_per_egg_usd:
+        missing_fields.append("rate_per_egg_usd")
+    
+    if missing_fields:
+        return {"success": False, "error": f"Cannot generate documents. Missing required fields: {', '.join(missing_fields)}"}
+
     ensure_templates_exist()
 
     shipment_data = _shipment_to_dict(shipment)
@@ -358,6 +398,46 @@ def generate_documents(shipment_id: str, db: Session) -> dict:
 
     s_repo.update_status(shipment_id, "complete")
     return {"success": True, "documents": saved}
+
+
+def generate_single_document(shipment_id: str, doc_type: str, db: Session) -> dict:
+    """Generate a single document for a shipment and save its record."""
+    s_repo = ShipmentRepository(db)
+    shipment = s_repo.get_by_id(shipment_id)
+    if not shipment:
+        return {"success": False, "error": "Shipment not found"}
+
+    from services.document_generator import generate_single
+    
+    shipment_data = _shipment_to_dict(shipment)
+    generated = generate_single(shipment_data, doc_type)
+    if not generated:
+        return {"success": False, "error": f"Failed to generate {doc_type}"}
+
+    doc_repo = GeneratedDocumentRepository(db)
+    
+    existing = doc_repo.list_by_shipment(shipment_id)
+    record = None
+    for d in existing:
+        if d.doc_type == doc_type:
+            record = d
+            break
+            
+    if record:
+        record.file_name = generated["file_name"]
+        record.file_path = generated["file_path"]
+        record.file_format = generated["file_format"]
+        db.commit()
+    else:
+        record = doc_repo.create(
+            shipment_id=shipment_id,
+            doc_type=generated["doc_type"],
+            file_name=generated["file_name"],
+            file_path=generated["file_path"],
+            file_format=generated["file_format"],
+        )
+        
+    return {"success": True, "file_path": record.file_path}
 
 
 def get_document_path(shipment_id: str, doc_type: str, db: Session) -> str | None:

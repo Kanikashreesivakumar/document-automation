@@ -289,10 +289,30 @@ def prepare_health_certificate():
                 for run in para.runs:
                     if run.text.strip():
                         # Clear all runs and set first to placeholder
-                        for r in para.runs:
-                            r.text = ""
                         para.runs[0].text = "{{ vet_officer_name }}"
                         break
+
+        # ── Compress Annexure Spacing (Page 2/3) ──
+        # Reduce space after these specific lines to prevent spilling to Page 3
+        if i >= 55:
+            from docx.shared import Pt
+            from docx.enum.text import WD_LINE_SPACING
+            
+            # Reduce spacing for the metadata lines
+            if any(keyword in text for keyword in [
+                "Container No", "Production Date", "Expiry Date", 
+                "Invoice No/Date", "Certificate No", "Date of Issue"
+            ]):
+                para.paragraph_format.space_after = Pt(2)
+                
+            # Shrink empty paragraphs between Date of Issue and Signature
+            if not text.strip() and i > 60 and i < 75:
+                para.paragraph_format.space_before = Pt(0)
+                para.paragraph_format.space_after = Pt(0)
+                para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+                para.paragraph_format.line_spacing = Pt(1)
+                for run in para.runs:
+                    run.font.size = Pt(1)
 
     doc.save(str(dest))
     print(f"[HealthCertTemplate] Saved: {dest}")

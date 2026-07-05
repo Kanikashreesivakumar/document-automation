@@ -54,33 +54,17 @@ def _ensure_output_dir(shipment_id: str) -> Path:
 
 def _ensure_templates():
     """
-    Auto-prepare templates if they are missing. Runs prepare_all_templates.py
-    which copies original uploaded DOCX files to templates/ and injects placeholders.
+    Validate that required templates exist in the templates directory.
+    Template generation is now handled as a separate developer step.
     """
     required = ["invoice.docx", "packing_list.docx", "proforma_invoice.docx",
                 "trade_facility.docx", "export_insurance.docx", "health_certificate.docx"]
     missing = [t for t in required if not (TEMPLATES_DIR / t).exists()]
 
     if missing:
-        print(f"[DocumentGenerator] Missing templates: {missing}. Auto-preparing...")
-        try:
-            from services.prepare_all_templates import main as prepare_all
-            prepare_all()
-        except Exception as exc:
-            print(f"[DocumentGenerator] Legacy template preparation failed: {exc}")
-            
-        try:
-            import generate_clean_templates
-            generate_clean_templates.generate_all_clean_templates()
-        except Exception as exc:
-            print(f"[DocumentGenerator] Clean template preparation failed: {exc}")
-
-        if "health_certificate.docx" in missing:
-            try:
-                from services.prepare_health_cert_template import prepare_health_certificate
-                prepare_health_certificate()
-            except Exception as exc:
-                print(f"[DocumentGenerator] Health cert template prep failed: {exc}")
+        error_msg = f"Missing required templates: {missing}. Please run the template preparation scripts."
+        print(f"[DocumentGenerator] ERROR: {error_msg}")
+        raise FileNotFoundError(error_msg)
 
 
 def _fill_one_docx(doc_type: str, template_file: str, output_name: str,
@@ -102,13 +86,7 @@ def _fill_one_docx(doc_type: str, template_file: str, output_name: str,
     try:
         ctx = get_context(doc_type, shipment_data)
 
-        # ── Runtime debug logging for trade_facility ─────────────────────────
-        if doc_type == "trade_facility":
-            print("=" * 80)
-            print("TRADE FACILITY CONTEXT")
-            for key, value in sorted(ctx.items()):
-                print(f"  {key}: {value!r}")
-            print("=" * 80)
+
 
         fill_docx_template(template_path, file_path_docx, ctx)
         return doc_type, output_name, file_path_docx, file_path_pdf

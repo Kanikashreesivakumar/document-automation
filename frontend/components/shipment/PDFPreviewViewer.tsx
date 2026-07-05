@@ -140,12 +140,19 @@ export function PDFPreviewViewer({ shipmentId, docType, data }: PDFPreviewViewer
         )}
 
         {pdfUrl && (
-          <iframe
-            src={`${pdfUrl}#view=FitH&scrollbar=0&toolbar=0`}
-            className={`w-full h-full absolute inset-0 border-none transition-opacity duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}
-            style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden' }}
-            title="PDF Preview"
-          />
+          <div className="absolute inset-0 bg-gray-100 p-4 sm:p-8 overflow-y-auto w-full h-full flex justify-center">
+            <div
+              className="relative shadow-2xl bg-white w-full max-w-[850px]"
+              style={{ aspectRatio: '210/297', height: 'fit-content' }}
+            >
+              <iframe
+                src={`${pdfUrl}#view=FitH&pagemode=none&scrollbar=0&toolbar=0&navpanes=0`}
+                className={`w-full h-full absolute inset-0 border-none transition-opacity duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}
+                style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden', backgroundColor: 'transparent' }}
+                title="PDF Preview"
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

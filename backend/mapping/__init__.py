@@ -160,31 +160,12 @@ def _build_base_context(shipment: dict) -> dict:
     lot_number = _s(prod.get("lot_number"))
     epcg_licence_no = _s(prod.get("epcg_licence_number"))
     dt = _s(prod.get("dt"))
-    prod_duration = _s(prod.get("production_duration"))
-    duration_str = f" ({prod_duration})" if prod_duration else ""
+    duration_period = _s(prod.get("production_duration"))
+    duration_str = f" {duration_period}" if duration_period else ""
 
     description_of_goods_text = f"""FRESH WHITE SHELL TABLE EGGS (CHICKEN)
-{shipment_decl}
 
-Total Cartons      : {cartons_str}
-Trays per Carton   : {trays_per_carton_str}
-Eggs per Tray      : {eggs_per_tray_str}
-Eggs per Carton    : {eggs_per_carton_str}
-Total Eggs         : {total_eggs_str}
-
-Each carton printed with production date
-and expiry date{duration_str}.
-
-Container Type     : {container_type}
-PAN No             : {pan_no}
-GSTIN              : {gstin_no}
-HSN Code           : {hsn_code}
-Egg Size           : {egg_size}
-Production Date    : {production_date}
-Expiry Date        : {expiry_date}
-Lot Number         : {lot_number}
-EPCG Licence No    : {epcg_licence_no}
-DT                 : {dt}"""
+{shipment_decl} Total Cartons: {cartons_str}. Trays per Carton: {trays_per_carton_str}. Eggs per Tray: {eggs_per_tray_str}. Eggs per Carton: {eggs_per_carton_str}. Total Eggs: {total_eggs_str}. Each carton printed with production date and expiry date{duration_str}. Container Type: {container_type}. PAN No: {pan_no}. GSTIN: {gstin_no}. HSN Code: {hsn_code}. Egg Size: {egg_size}. Production Date: {production_date}. Expiry Date: {expiry_date}. Lot Number: {lot_number}. EPCG Licence No: {epcg_licence_no}. DT: {dt}."""
 
     return {
         "shipment_number": _s(shipment.get("shipment_number")),

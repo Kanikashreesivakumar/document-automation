@@ -360,10 +360,7 @@ def generate_documents(shipment_id: str, db: Session) -> dict:
 
     missing_fields = []
     
-    print("=== VALIDATION OBJECT ===")
-    import pprint
-    pprint.pprint(_shipment_to_dict(shipment))
-    print("=========================")
+
 
     
     if not shipment.invoice_info or not shipment.invoice_info.invoice_no:

@@ -54,36 +54,59 @@ def make_table_borders_invisible(table):
 
 def add_header(doc, header_img_path):
     section = doc.sections[0]
+    section.header_distance = Cm(0)
     section.different_first_page_header_footer = True
     header = section.first_page_header
     p = header.paragraphs[0]
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
+    p.paragraph_format.line_spacing = 1.0
     if os.path.exists(header_img_path):
         run = p.add_run()
-        run.add_picture(header_img_path, width=Inches(6.5))
+        run.add_picture(header_img_path, width=Inches(7.0))
     else:
         p.add_run("COMPANY LOGO / HEADER NOT FOUND").bold = True
+
+def add_spacer(doc, pt=6):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(pt)
+    run = p.add_run()
+    run.font.size = Pt(2)
+
+def set_cell_padding(cell, top=1, bottom=1, start=3, end=3):
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcMar = OxmlElement('w:tcMar')
+    for margin, val in [('top', int(top*20)), ('bottom', int(bottom*20)), ('left', int(start*20)), ('right', int(end*20))]:
+        node = OxmlElement(f'w:{margin}')
+        node.set(qn('w:w'), str(val))
+        node.set(qn('w:type'), 'dxa')
+        tcMar.append(node)
+    tcPr.append(tcMar)
 
 def apply_style(run, bold=False, size=10):
     run.font.name = 'Arial'
     run.font.size = Pt(size)
     run.bold = bold
 
-def add_kv_pair(cell, key, value, size=9):
+def add_kv_pair(cell, key, value, size=9, line_spacing=1.0):
     p = cell.paragraphs[0]
     if p.text:
         p = cell.add_paragraph()
-    p.paragraph_format.space_after = Pt(2)
+    p.paragraph_format.space_after = Pt(0)
+    p.paragraph_format.line_spacing = line_spacing
     run_key = p.add_run(f"{key}: ")
     apply_style(run_key, bold=True, size=size)
     run_val = p.add_run(value)
     apply_style(run_val, size=size)
 
-def add_text(cell, text, bold=False, size=9, align=None):
+def add_text(cell, text, bold=False, size=9, align=None, line_spacing=1.0):
     p = cell.paragraphs[0]
     if p.text:
         p = cell.add_paragraph()
-    p.paragraph_format.space_after = Pt(2)
+    p.paragraph_format.space_after = Pt(0)
+    p.paragraph_format.line_spacing = line_spacing
     if align is not None:
         p.alignment = align
     run = p.add_run(text)
@@ -133,20 +156,24 @@ def create_invoice_base(doc_path, title, is_proforma=False):
     for section in sections:
         section.page_height = Cm(29.7)
         section.page_width = Cm(21.0)
-        section.left_margin = Cm(1.27)
-        section.right_margin = Cm(1.27)
-        section.top_margin = Cm(1.27)
-        section.bottom_margin = Cm(1.27)
+        section.left_margin = Cm(0.8)
+        section.right_margin = Cm(0.8)
+        section.top_margin = Cm(0.2)
+        section.bottom_margin = Cm(0.25)
 
     # Header
     add_header(doc, r'd:\Form Automation\backend\templates\header_img.jpeg')
+    add_spacer(doc, pt=4)
     
     # Title
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(2)
     run = p.add_run(title)
-    apply_style(run, bold=True, size=14)
-    p.paragraph_format.space_after = Pt(12)
+    apply_style(run, bold=True, size=11)
+    
+    add_spacer(doc, pt=4)
 
     # Invisible layout table 1: Invoice info (top right)
     table_info = doc.add_table(rows=1, cols=2)
@@ -182,7 +209,7 @@ def create_invoice_base(doc_path, title, is_proforma=False):
         add_kv_pair(cell_right, "Shipping Bill No", "{{ shipping_bill_no }}")
         add_kv_pair(cell_right, "Shipping Bill Date", "{{ shipping_bill_date }}")
 
-    doc.add_paragraph() # spacer
+    add_spacer(doc, pt=6)
 
     # Invisible layout table 2: Consignee & Buyer
     table_parties = doc.add_table(rows=1, cols=2)
@@ -201,13 +228,16 @@ def create_invoice_base(doc_path, title, is_proforma=False):
     add_text(c_buyer, "Buyer (if different):", bold=True, size=10)
     add_text(c_buyer, "{{ buyer_name }}", bold=True)
     add_text(c_buyer, "{{ buyer_address }}")
-    
-    doc.add_paragraph()
+
+    add_spacer(doc, pt=6)
 
     # Shipment Details Table (Visible)
     table_shipment = doc.add_table(rows=3, cols=4)
     table_shipment.style = 'Table Grid'
-    
+    for row in table_shipment.rows:
+        for cell in row.cells:
+            set_cell_padding(cell, top=1, bottom=1, start=3, end=3)
+            
     s_cells = table_shipment.rows[0].cells
     add_kv_pair(s_cells[0], "Pre-Carriage By", "{{ pre_carriage_by }}")
     add_kv_pair(s_cells[1], "Place of Receipt", "{{ place_of_receipt }}")
@@ -225,28 +255,32 @@ def create_invoice_base(doc_path, title, is_proforma=False):
     s_cells3[0].merge(s_cells3[3])
     add_kv_pair(s_cells3[0], "Terms of Delivery and Payment", "{{ terms_of_delivery }}")
 
-    doc.add_paragraph()
+    add_spacer(doc, pt=6)
 
     # Description of Goods Table (Visible)
-    table_goods = doc.add_table(rows=2, cols=4)
+    table_goods = doc.add_table(rows=2, cols=6)
     table_goods.style = 'Table Grid'
-    table_goods.columns[0].width = Inches(4.5)
-    table_goods.columns[1].width = Inches(1.0)
-    table_goods.columns[2].width = Inches(1.0)
-    table_goods.columns[3].width = Inches(1.0)
+    table_goods.autofit = False
     
-    headers = ["DESCRIPTION OF GOODS", "QUANTITY", "RATE", "AMOUNT"]
+    widths = [Inches(1.05), Inches(0.9), Inches(3.25), Inches(0.75), Inches(0.75), Inches(0.9)]
+    for row in table_goods.rows:
+        for idx, width in enumerate(widths):
+            cell = row.cells[idx]
+            cell.width = width
+            set_cell_padding(cell, top=2, bottom=2, start=3, end=3)
+            
+    headers = ["Marks & Nos / Container Nos", "No. & Kind of Packages", "Description of Goods", "Quantity", "Rate in USD per Number", "Amount in USD"]
     for i, h in enumerate(headers):
         add_text(table_goods.cell(0, i), h, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
         
-    goods_cell = table_goods.cell(1, 0)
-    add_text(goods_cell, "{{ description_of_goods }}")
-    
-    add_text(table_goods.cell(1, 1), "{{ quantity_of_goods }}", align=WD_ALIGN_PARAGRAPH.CENTER)
-    add_text(table_goods.cell(1, 2), "$ {{ rate_per_egg_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
-    add_text(table_goods.cell(1, 3), "{{ amount_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(table_goods.cell(1, 0), "{{ container_no }}\n{{ seal_no }}")
+    add_text(table_goods.cell(1, 1), "{{ no_and_kind_of_packages }}\n{{ container_type }}")
+    add_text(table_goods.cell(1, 2), "{{ description_of_goods }}")
+    add_text(table_goods.cell(1, 3), "{{ quantity_of_goods }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(table_goods.cell(1, 4), "${{ rate_per_egg_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(table_goods.cell(1, 5), "{{ amount_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
 
-    doc.add_paragraph()
+    add_spacer(doc, pt=6)
 
     # Totals
     table_totals = doc.add_table(rows=1, cols=2)
@@ -256,6 +290,8 @@ def create_invoice_base(doc_path, title, is_proforma=False):
     
     add_kv_pair(t_cells[1], "Total Net Weight", "{{ net_weight }} KGS")
     add_kv_pair(t_cells[1], "Total Gross Weight", "{{ gross_weight }} KGS")
+    
+    add_spacer(doc, pt=6)
 
     add_professional_footer(doc)
 
@@ -276,18 +312,19 @@ def create_packing_list(doc_path):
     for section in sections:
         section.page_height = Cm(29.7)
         section.page_width = Cm(21.0)
-        section.left_margin = Cm(1.27)
-        section.right_margin = Cm(1.27)
-        section.top_margin = Cm(1.27)
-        section.bottom_margin = Cm(1.27)
+        section.left_margin = Cm(0.8)
+        section.right_margin = Cm(0.8)
+        section.top_margin = Cm(0.25)
+        section.bottom_margin = Cm(0.25)
 
     add_header(doc, r'd:\Form Automation\backend\templates\header_img.jpeg')
     
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
     run = p.add_run("PACKING LIST")
-    apply_style(run, bold=True, size=14)
-    p.paragraph_format.space_after = Pt(12)
+    apply_style(run, bold=True, size=11)
 
     # Info
     table_info = doc.add_table(rows=1, cols=2)
@@ -328,32 +365,23 @@ def create_packing_list(doc_path):
     doc.add_paragraph()
 
     # Packing Table
-    # Table columns: Marks & Numbers, Description, Cartons, Trays, Eggs, Net Weight, Gross Weight
-    # Trays, Eggs inside mapping is not directly exported as independent keys except `total_cartons`, `total_eggs`.
-    # Wait, user said "Columns: Marks & Numbers, Description, Cartons, Trays, Eggs, Net Weight, Gross Weight"
-    # But trays per carton is NOT in the mapping by default, unless I put it there.
-    # The user said "DO NOT create new mapping keys... Use ONLY the existing backend mapping."
-    # If the backend mapping does not have "trays_per_carton", I can just put placeholders and let it map to empty if it doesn't exist?
-    # Actually, in the existing packing list, they put the entire description_of_goods or they put total_cartons, etc.
-    # Let's map to the existing keys available!
-    # Cartons -> total_cartons
-    # Eggs -> total_eggs
-    # Net Weight -> net_weight
-    # Gross Weight -> gross_weight
-    # Description -> description_of_goods
-    
-    table_pack = doc.add_table(rows=2, cols=6)
+    table_pack = doc.add_table(rows=2, cols=5)
     table_pack.style = 'Table Grid'
-    headers = ["Marks & Nos", "Description of Goods", "Quantity", "Net Weight", "Gross Weight", "Total Eggs"]
+    table_pack.autofit = False
+    table_pack.columns[0].width = Inches(0.8)
+    table_pack.columns[1].width = Inches(0.8)
+    table_pack.columns[2].width = Inches(4.3)
+    table_pack.columns[3].width = Inches(0.6)
+    table_pack.columns[4].width = Inches(1.1)
+    headers = ["Marks & Nos / Container Nos", "No. & Kind of Packages", "Description of Goods", "Quantity", "Remarks"]
     for i, h in enumerate(headers):
         add_text(table_pack.cell(0, i), h, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
         
     add_text(table_pack.cell(1, 0), "{{ container_no }}\n{{ seal_no }}")
-    add_text(table_pack.cell(1, 1), "{{ description_of_goods }}")
-    add_text(table_pack.cell(1, 2), "{{ quantity_of_goods }}")
-    add_text(table_pack.cell(1, 3), "{{ net_weight }} KGS")
-    add_text(table_pack.cell(1, 4), "{{ gross_weight }} KGS")
-    add_text(table_pack.cell(1, 5), "{{ total_eggs }}")
+    add_text(table_pack.cell(1, 1), "{{ no_and_kind_of_packages }}\n{{ container_type }}")
+    add_text(table_pack.cell(1, 2), "{{ description_of_goods }}")
+    add_text(table_pack.cell(1, 3), "{{ quantity_of_goods }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(table_pack.cell(1, 4), "Net wt/carton:\n{{ net_weight }} KGS (Total)\n\nGross wt/carton:\n{{ gross_weight_per_egg }} KGS")
 
     add_professional_footer(doc)
     
@@ -379,26 +407,29 @@ def create_proforma_invoice(doc_path):
       - Totals & Amount in Words
       - Bank Details (Company constants + Intermediate Bank)
       - Payment Section
-      - Footer / Declaration
+      - Terms & Conditions
+      - Declaration
+      - Signatures & Footer
     """
     doc = docx.Document()
 
     for section in doc.sections:
         section.page_height = Cm(29.7)
         section.page_width  = Cm(21.0)
-        section.left_margin  = Cm(1.27)
-        section.right_margin = Cm(1.27)
-        section.top_margin   = Cm(1.5)
-        section.bottom_margin = Cm(1.5)
+        section.left_margin  = Cm(0.8)
+        section.right_margin = Cm(0.8)
+        section.top_margin   = Cm(0.0)
+        section.bottom_margin = Cm(0.0)
 
     add_header(doc, r'd:\Form Automation\backend\templates\header_img.jpeg')
 
-    # ── Title ──────────────────────────────────────────────────────────────────
-    p = doc.add_paragraph()
+    # Hook into the default initial paragraph to avoid adding an extra blank one at the top
+    p = doc.paragraphs[0] if doc.paragraphs else doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
     run = p.add_run("PROFORMA INVOICE")
-    apply_style(run, bold=True, size=14)
-    p.paragraph_format.space_after = Pt(8)
+    apply_style(run, bold=True, size=11)
 
     # ── Section 1: Exporter (left) + Proforma Reference (right) ───────────────
     t1 = doc.add_table(rows=1, cols=2)
@@ -409,12 +440,12 @@ def create_proforma_invoice(doc_path):
 
     c_exp = t1.cell(0, 0)
     add_text(c_exp, "Exporter:", bold=True, size=10)
-    add_text(c_exp, "{{ exporter_name }}", bold=True)
-    add_text(c_exp, "{{ exporter_address }}")
-    add_kv_pair(c_exp, "GSTIN",  "{{ exporter_gstin }}")
-    add_kv_pair(c_exp, "PAN",    "{{ exporter_pan }}")
-    add_kv_pair(c_exp, "IEC",    "{{ exporter_iec }}")
-    add_kv_pair(c_exp, "Email",  "{{ exporter_email }}")
+    add_text(c_exp, "{{ exporter_name }}", bold=True, line_spacing=1.15)
+    add_text(c_exp, "{{ exporter_address }}", line_spacing=1.15)
+    add_kv_pair(c_exp, "GSTIN",  "{{ exporter_gstin }}", line_spacing=1.15)
+    add_kv_pair(c_exp, "PAN",    "{{ exporter_pan }}", line_spacing=1.15)
+    add_kv_pair(c_exp, "IEC",    "{{ exporter_iec }}", line_spacing=1.15)
+    add_kv_pair(c_exp, "Email",  "{{ exporter_email }}", line_spacing=1.15)
 
     c_ref = t1.cell(0, 1)
     add_kv_pair(c_ref, "Proforma Invoice No",        "{{ proforma_invoice_no }}")
@@ -425,43 +456,43 @@ def create_proforma_invoice(doc_path):
     add_kv_pair(c_ref, "Other Reference",             "{{ other_reference }}")
     add_kv_pair(c_ref, "Buyer's Order No & Date",     "{{ buyer_order_no_date }}")
 
-    doc.add_paragraph()
-
-    # ── Section 2: Consignee (left) + Buyer (right) ───────────────────────────
-    t2 = doc.add_table(rows=1, cols=2)
+    # ── Section 2: Consignee, Buyer & Notify Party (Combined) ─────────────────
+    t2 = doc.add_table(rows=1, cols=3)
+    t2.style = 'Table Grid'
     t2.autofit = False
-    t2.columns[0].width = Inches(3.75)
-    t2.columns[1].width = Inches(3.75)
-    make_table_borders_invisible(t2)
+    
+    # 3 equal columns: ~2.53 inches each
+    t2.columns[0].width = Inches(2.53)
+    t2.columns[1].width = Inches(2.53)
+    t2.columns[2].width = Inches(2.54)
+    
+    for cell in t2.rows[0].cells:
+        set_cell_padding(cell, top=1, bottom=1, start=3, end=3)
 
     c_con = t2.cell(0, 0)
-    add_text(c_con, "Consignee:", bold=True, size=10)
-    add_text(c_con, "{{ consignee_name }}", bold=True)
-    add_text(c_con, "{{ consignee_address }}")
-    add_kv_pair(c_con, "TRN", "{{ consignee_trn }}")
+    add_text(c_con, "Consignee:", bold=True, size=9)
+    add_text(c_con, "{{ consignee_name }}", bold=True, size=9, line_spacing=1.15)
+    add_text(c_con, "{{ consignee_address }}", size=8, line_spacing=1.15)
+    add_kv_pair(c_con, "TRN", "{{ consignee_trn }}", line_spacing=1.15)
 
     c_buy = t2.cell(0, 1)
-    add_text(c_buy, "Buyer:", bold=True, size=10)
-    add_text(c_buy, "{{ buyer_name }}", bold=True)
-    add_text(c_buy, "{{ buyer_address }}")
-    add_kv_pair(c_buy, "TRN",     "{{ buyer_trn }}")
-    add_kv_pair(c_buy, "Country", "{{ buyer_country }}")
+    add_text(c_buy, "Buyer (if other than Consignee):", bold=True, size=9)
+    add_text(c_buy, "{{ buyer_name }}", bold=True, size=9, line_spacing=1.15)
+    add_text(c_buy, "{{ buyer_address }}", size=8, line_spacing=1.15)
+    add_kv_pair(c_buy, "TRN",     "{{ buyer_trn }}", line_spacing=1.15)
+    add_kv_pair(c_buy, "Country", "{{ buyer_country }}", line_spacing=1.15)
 
-    doc.add_paragraph()
+    c_np = t2.cell(0, 2)
+    add_text(c_np, "Notify Party:", bold=True, size=9)
+    add_text(c_np, "{{ notify_party }}", bold=True, size=9, line_spacing=1.15)
+    add_text(c_np, "{{ notify_party_address }}", size=8, line_spacing=1.15)
 
-    # ── Section 3: Notify Party ───────────────────────────────────────────────
-    t3 = doc.add_table(rows=1, cols=1)
-    make_table_borders_invisible(t3)
-    c_np = t3.cell(0, 0)
-    add_text(c_np, "Notify Party:", bold=True, size=10)
-    add_text(c_np, "{{ notify_party }}", bold=True)
-    add_text(c_np, "{{ notify_party_address }}")
-
-    doc.add_paragraph()
-
-    # ── Section 4: Shipment Details ───────────────────────────────────────────
+    # ── Section 3: Shipment Details ───────────────────────────────────────────
     t4 = doc.add_table(rows=3, cols=4)
     t4.style = 'Table Grid'
+    for row in t4.rows:
+        for cell in row.cells:
+            set_cell_padding(cell, top=1, bottom=1, start=3, end=3)
 
     r0 = t4.rows[0].cells
     add_kv_pair(r0[0], "Pre-Carriage By",    "{{ pre_carriage_by }}")
@@ -479,28 +510,35 @@ def create_proforma_invoice(doc_path):
     r2[0].merge(r2[3])
     add_kv_pair(r2[0], "Terms of Delivery & Payment", "{{ terms_of_delivery }}")
 
-    doc.add_paragraph()
-
-    # ── Section 5: Goods Table ────────────────────────────────────────────────
+    # ── Section 4: Goods Table ────────────────────────────────────────────────
     # Columns: Marks & Numbers | No & Kind of Packages | Description | Qty | Rate | Amount
     t5 = doc.add_table(rows=2, cols=6)
     t5.style = 'Table Grid'
+    t5.autofit = False
+    
+    widths = [Inches(1.05), Inches(0.9), Inches(3.25), Inches(0.75), Inches(0.75), Inches(0.9)]
+    for row in t5.rows:
+        for idx, width in enumerate(widths):
+            cell = row.cells[idx]
+            cell.width = width
+            set_cell_padding(cell, top=2, bottom=2, start=3, end=3)
+            
 
-    hdrs = ["Marks &\nNumbers", "No & Kind\nof Packages", "Description of Goods",
-            "Quantity", "Rate\n(USD/Egg)", "Amount"]
+    hdrs = ["Marks & Nos / Container Nos", "No. & Kind of Packages", "Description of Goods",
+            "Quantity", "Rate in USD per Number", "Amount in USD"]
     for i, h in enumerate(hdrs):
         add_text(t5.cell(0, i), h, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
 
-    add_text(t5.cell(1, 0), "{{ container_no }}")
+    add_text(t5.cell(1, 0), "{{ container_no }}\n{{ seal_no }}")
     add_text(t5.cell(1, 1), "{{ no_and_kind_of_packages }}\n{{ container_type }}")
-    add_text(t5.cell(1, 2), "{{ description_of_goods }}")
+    add_text(t5.cell(1, 2), "{{ description_of_goods }}", line_spacing=1.15)
     add_text(t5.cell(1, 3), "{{ quantity_of_goods }}", align=WD_ALIGN_PARAGRAPH.CENTER)
-    add_text(t5.cell(1, 4), "$ {{ rate_per_egg_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(t5.cell(1, 4), "${{ rate_per_egg_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
     add_text(t5.cell(1, 5), "{{ amount_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
 
-    doc.add_paragraph()
+    add_spacer(doc, pt=2)
 
-    # ── Section 6: Totals row ─────────────────────────────────────────────────
+    # ── Section 5: Totals row ─────────────────────────────────────────────────
     t6 = doc.add_table(rows=1, cols=2)
     make_table_borders_invisible(t6)
     tc0 = t6.rows[0].cells[0]
@@ -510,9 +548,7 @@ def create_proforma_invoice(doc_path):
     add_kv_pair(tc1, "Total Gross Weight", "{{ gross_weight }} KGS")
     add_kv_pair(tc1, "Total Payment",      "{{ total_payment }}")
 
-    doc.add_paragraph()
-
-    # ── Section 7: Payment Terms ──────────────────────────────────────────────
+    # ── Section 6: Payment Terms ──────────────────────────────────────────────
     t7 = doc.add_table(rows=1, cols=2)
     make_table_borders_invisible(t7)
     tp0 = t7.rows[0].cells[0]
@@ -520,31 +556,101 @@ def create_proforma_invoice(doc_path):
     add_kv_pair(tp0, "Payment Terms", "{{ payment_terms }}")
     add_kv_pair(tp1, "Expiry Date",   "{{ expiry_date }}")
 
-    doc.add_paragraph()
-
-    # ── Section 8: Bank Details ───────────────────────────────────────────────
+    # ── Section 7: Bank Details ───────────────────────────────────────────────
     t8 = doc.add_table(rows=1, cols=2)
     t8.style = 'Table Grid'
 
     c_co_bank = t8.cell(0, 0)
     add_text(c_co_bank, "Company Bank Details", bold=True, size=10)
-    add_kv_pair(c_co_bank, "Account Name",   "{{ company_account_name }}")
-    add_kv_pair(c_co_bank, "Account Number", "{{ company_account_number }}")
-    add_kv_pair(c_co_bank, "Bank Name",      "{{ company_bank_name }}")
-    add_kv_pair(c_co_bank, "Branch",         "{{ company_branch }}")
-    add_kv_pair(c_co_bank, "SWIFT Code",     "{{ company_swift }}")
+    add_kv_pair(c_co_bank, "Account Name",   "{{ company_account_name }}", line_spacing=1.15)
+    add_kv_pair(c_co_bank, "Account Number", "{{ company_account_number }}", line_spacing=1.15)
+    add_kv_pair(c_co_bank, "Bank Name",      "{{ company_bank_name }}", line_spacing=1.15)
+    add_kv_pair(c_co_bank, "Branch",         "{{ company_branch }}", line_spacing=1.15)
+    add_kv_pair(c_co_bank, "SWIFT Code",     "{{ company_swift }}", line_spacing=1.15)
 
     c_int_bank = t8.cell(0, 1)
     add_text(c_int_bank, "Intermediate / Correspondent Bank", bold=True, size=10)
-    add_kv_pair(c_int_bank, "Bank Name",        "{{ intermediate_bank_name }}")
-    add_kv_pair(c_int_bank, "Account Number",   "{{ intermediate_bank_account_number }}")
-    add_kv_pair(c_int_bank, "SWIFT",            "{{ intermediate_bank_swift }}")
-    add_kv_pair(c_int_bank, "Routing Number",   "{{ intermediate_bank_routing_number }}")
-    add_kv_pair(c_int_bank, "Correspondent",    "{{ correspondent_bank }}")
+    add_kv_pair(c_int_bank, "Bank Name",        "{{ intermediate_bank_name }}", line_spacing=1.15)
+    add_kv_pair(c_int_bank, "Account Number",   "{{ intermediate_bank_account_number }}", line_spacing=1.15)
+    add_kv_pair(c_int_bank, "SWIFT",            "{{ intermediate_bank_swift }}", line_spacing=1.15)
+    add_kv_pair(c_int_bank, "Routing Number",   "{{ intermediate_bank_routing_number }}", line_spacing=1.15)
+    add_kv_pair(c_int_bank, "Correspondent",    "{{ correspondent_bank }}", line_spacing=1.15)
 
-    doc.add_paragraph()
+    add_spacer(doc, pt=2)
 
-    add_professional_footer(doc)
+    # ── Section 9: Horizontal Terms, Declaration & Company ────────────────────
+    t9 = doc.add_table(rows=1, cols=3)
+    t9.style = 'Table Grid'
+    t9.autofit = False
+    t9.columns[0].width = Inches(2.53)
+    t9.columns[1].width = Inches(2.53)
+    t9.columns[2].width = Inches(2.54)
+    
+    # Left Column: Terms
+    c_terms = t9.cell(0, 0)
+    add_text(c_terms, "Terms & Conditions:", bold=True, size=9)
+    terms_text = (
+        "1. All goods are shipped at buyer's risk.\n"
+        "2. Any discrepancy must be reported within 7 days of receipt of goods.\n"
+        "3. Subject to Namakkal Jurisdiction only.\n"
+        "4. This is a computer-generated Proforma Invoice."
+    )
+    add_text(c_terms, terms_text, size=8)
+    
+    # Middle Column: Declaration
+    c_decl = t9.cell(0, 1)
+    add_text(c_decl, "Declaration:", bold=True, size=9)
+    add_text(c_decl, 
+        "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.", 
+        size=8)
+        
+    # Right Column: Company Info
+    c_comp = t9.cell(0, 2)
+    add_text(c_comp, "For RASI FOODS", bold=True, size=9, align=WD_ALIGN_PARAGRAPH.RIGHT)
+    add_text(c_comp, "\n\n\nAuthorised Signatory & Company Seal", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+
+    add_spacer(doc, pt=2)
+
+    # ── Section 10: Horizontal Signatures ─────────────────────────────────────
+    t10 = doc.add_table(rows=1, cols=3)
+    t10.style = 'Table Grid'
+    t10.autofit = False
+    t10.columns[0].width = Inches(2.53)
+    t10.columns[1].width = Inches(2.53)
+    t10.columns[2].width = Inches(2.54)
+    
+    c_sig_conf = t10.cell(0, 0)
+    c_sig_cons = t10.cell(0, 1)
+    c_sig_exp  = t10.cell(0, 2)
+
+    add_text(c_sig_conf, "Confirmation for Proforma Invoice", bold=True, size=9, align=WD_ALIGN_PARAGRAPH.CENTER)
+    
+    add_text(c_sig_cons, "Consignee Signature", bold=True, size=9, align=WD_ALIGN_PARAGRAPH.CENTER)
+    
+    add_text(c_sig_exp, "Exporter Signature", bold=True, size=9, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    add_spacer(doc, pt=2)
+
+    # ── Section 11: Footer ────────────────────────────────────────────────────
+    t_foot = doc.add_table(rows=1, cols=1)
+    make_table_borders_invisible(t_foot)
+    c_foot = t_foot.cell(0, 0)
+    add_text(c_foot, "{{ exporter_name }}", bold=True, size=8, align=WD_ALIGN_PARAGRAPH.CENTER, line_spacing=1.15)
+    add_text(c_foot, "{{ exporter_address }}", size=8, align=WD_ALIGN_PARAGRAPH.CENTER, line_spacing=1.15)
+    add_text(c_foot, "Email: {{ exporter_email }} | GSTIN: {{ exporter_gstin }} | PAN: {{ exporter_pan }}", size=8, align=WD_ALIGN_PARAGRAPH.CENTER, line_spacing=1.15)
+    
+    # Root Cause Fix for 2nd page:
+    # Word COM objects automatically insert a default 11pt paragraph after the last table if none exists.
+    # By providing a 1pt paragraph explicitly, we prevent Word from adding the massive default spacing.
+    final_p = doc.add_paragraph()
+    final_p.paragraph_format.space_before = Pt(0)
+    final_p.paragraph_format.space_after = Pt(0)
+    final_p.paragraph_format.line_spacing = Pt(1)
+    # Using EXACTLY rule to force 1pt height
+    from docx.enum.text import WD_LINE_SPACING
+    final_p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+    run = final_p.add_run()
+    run.font.size = Pt(1)
 
     # ── Validate and save ──────────────────────────────────────────────────────
     placeholders = extract_placeholders_from_doc(doc)

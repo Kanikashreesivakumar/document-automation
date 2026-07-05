@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@hookform/resolvers/zod'
 import { proformaInvoiceSchema, ProformaInvoiceForm } from '../../schemas/proformaInvoice';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
@@ -13,7 +13,15 @@ import { FormNavigator } from './FormNavigator';
 import { shipmentApi } from '../../services/shipmentApi';
 import { useShipmentData } from '../../hooks/useShipmentData';
 import { PDFPreviewViewer } from './PDFPreviewViewer';
-import { numberToWords } from '../../utils/numberToWords';
+
+// ─── Company bank defaults (must match COMPANY_BANK in backend/mapping/__init__.py) ──
+const COMPANY_BANK_DEFAULTS = {
+  company_account_name:   'RASI FOODS',
+  company_account_number: '50200082616067',
+  company_bank_name:      'HDFC BANK LTD',
+  company_branch:         'NAMAKKAL',
+  company_swift:          'HDFCINBB',
+};
 
 interface ProformaInvoiceFormProps {
   shipmentId: string;
@@ -30,16 +38,17 @@ export default function ProformaInvoiceFormComponent({ shipmentId }: ProformaInv
     handleSubmit,
     control,
     reset,
+    getValues,
     formState: { errors },
   } = useForm<ProformaInvoiceForm>({
     resolver: zodResolver(proformaInvoiceSchema),
-    defaultValues: {},
+    defaultValues: { ...COMPANY_BANK_DEFAULTS },
   });
 
-  // Load existing proforma data when shipment loads
+  // ── Load existing proforma data when shipment loads ──────────────────────────
   useEffect(() => {
-    if (!shipment?.proforma_invoice) return;
-    const pi = shipment.proforma_invoice;
+    if (!shipment) return;
+    const pi = shipment.proforma_invoice || {};
     reset({
       po_number:                        pi.po_number || '',
       po_date:                          pi.po_date || '',
@@ -56,25 +65,14 @@ export default function ProformaInvoiceFormComponent({ shipmentId }: ProformaInv
       intermediate_bank_swift:          pi.intermediate_bank_swift || '',
       intermediate_bank_routing_number: pi.intermediate_bank_routing_number || '',
       correspondent_bank:               pi.correspondent_bank || '',
+      // Company bank — use DB value if saved, otherwise use defaults
+      company_account_name:   pi.company_account_name   || COMPANY_BANK_DEFAULTS.company_account_name,
+      company_account_number: pi.company_account_number || COMPANY_BANK_DEFAULTS.company_account_number,
+      company_bank_name:      pi.company_bank_name      || COMPANY_BANK_DEFAULTS.company_bank_name,
+      company_branch:         pi.company_branch         || COMPANY_BANK_DEFAULTS.company_branch,
+      company_swift:          pi.company_swift          || COMPANY_BANK_DEFAULTS.company_swift,
     });
   }, [shipment, reset]);
-
-  // Watch proforma fields for live preview
-  const wPoNumber                    = useWatch({ control, name: 'po_number' });
-  const wPoDate                      = useWatch({ control, name: 'po_date' });
-  const wProformaInvoiceNumber       = useWatch({ control, name: 'proforma_invoice_number' });
-  const wBuyerTrn                    = useWatch({ control, name: 'buyer_trn' });
-  const wConsigneeTrn                = useWatch({ control, name: 'consignee_trn' });
-  const wNotifyParty                 = useWatch({ control, name: 'notify_party' });
-  const wNotifyPartyAddress          = useWatch({ control, name: 'notify_party_address' });
-  const wPaymentTerms                = useWatch({ control, name: 'payment_terms' });
-  const wExpiryDate                  = useWatch({ control, name: 'expiry_date' });
-  const wNoAndKindOfPackages         = useWatch({ control, name: 'no_and_kind_of_packages' });
-  const wIntermediateBankName        = useWatch({ control, name: 'intermediate_bank_name' });
-  const wIntermediateBankAccountNo   = useWatch({ control, name: 'intermediate_bank_account_number' });
-  const wIntermediateBankSwift       = useWatch({ control, name: 'intermediate_bank_swift' });
-  const wIntermediateBankRouting     = useWatch({ control, name: 'intermediate_bank_routing_number' });
-  const wCorrespondentBank           = useWatch({ control, name: 'correspondent_bank' });
 
   const onSubmit = async (data: ProformaInvoiceForm) => {
     setIsSubmitting(true);
@@ -91,7 +89,7 @@ export default function ProformaInvoiceFormComponent({ shipmentId }: ProformaInv
   const handleSaveDraft = useCallback(async () => {
     setIsSubmitting(true);
     try {
-      const values = control._formValues as ProformaInvoiceForm;
+      const values = getValues();
       await shipmentApi.saveProformaInvoice(shipmentId, values as Record<string, unknown>);
       setToast({ message: 'Draft saved.', type: 'success' });
     } catch {
@@ -99,7 +97,46 @@ export default function ProformaInvoiceFormComponent({ shipmentId }: ProformaInv
     } finally {
       setIsSubmitting(false);
     }
-  }, [control, shipmentId]);
+  }, [getValues, shipmentId]);
+
+  // ── Build full preview data: shipment base + live form values ────────────────
+  // This ensures intermediate bank and company bank always appear in preview
+  const liveValues = useWatch({ control });
+  const previewData = {
+    // Shipment base data
+    invoice_no:                    shipment?.invoice_info?.invoice_no,
+    invoice_date:                  shipment?.invoice_info?.invoice_date,
+    buyer_order_no_date:           shipment?.invoice_info?.buyer_order_no_date,
+    exporter_reference:            shipment?.invoice_info?.exporter_reference,
+    other_reference:               shipment?.invoice_info?.other_reference,
+    reference_proforma_invoice_no: shipment?.invoice_info?.reference_proforma_invoice_no,
+    consignee_name:    shipment?.buyer?.consignee_name,
+    buyer_name:        shipment?.buyer?.buyer_name,
+    buyer_address:     shipment?.buyer?.buyer_address,
+    buyer_postal_code: shipment?.buyer?.buyer_postal_code,
+    buyer_country:     shipment?.buyer?.buyer_country,
+    pre_carriage_by:              shipment?.shipment_details?.pre_carriage_by,
+    vessel_flight_no:             shipment?.shipment_details?.vessel_flight_no,
+    place_of_receipt:             shipment?.shipment_details?.place_of_receipt,
+    port_of_loading:              shipment?.shipment_details?.port_of_loading,
+    port_of_discharge:            shipment?.shipment_details?.port_of_discharge,
+    final_destination:            shipment?.shipment_details?.final_destination,
+    country_of_origin:            shipment?.shipment_details?.country_of_origin,
+    country_of_final_destination: shipment?.shipment_details?.country_of_final_destination,
+    terms_of_delivery:            shipment?.shipment_details?.terms_of_delivery,
+    brand_name:     shipment?.product?.brand_name,
+    product_name:   shipment?.product?.product_name,
+    container_type: shipment?.product?.container_type,
+    container_no:   shipment?.product?.container_no,
+    cartons:          shipment?.package?.cartons,
+    trays_per_carton: shipment?.package?.trays_per_carton,
+    eggs_per_tray:    shipment?.package?.eggs_per_tray,
+    rate_per_egg_usd: shipment?.pricing?.rate_per_egg_usd,
+    net_weight_per_carton:   shipment?.weight?.net_weight_per_carton,
+    gross_weight_per_carton: shipment?.weight?.gross_weight_per_carton,
+    // Live proforma form values (always up-to-date, overrides stale DB values)
+    ...liveValues,
+  };
 
   if (loading) {
     return (
@@ -208,8 +245,43 @@ export default function ProformaInvoiceFormComponent({ shipmentId }: ProformaInv
             />
           </div>
 
-          {/* ── 5. Banking Details ─────────────────────────────────────────── */}
-          <SectionHeader title="5. Banking Details" />
+          {/* ── 5. Company Bank Details ────────────────────────────────────── */}
+          <SectionHeader title="5. Company Bank Details" />
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-1">
+            <p className="text-xs text-blue-700">Pre-filled with company defaults. Edit only if required.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <Input
+              label="Account Name"
+              id="company_account_name"
+              register={register('company_account_name')}
+              className="sm:col-span-2"
+            />
+            <Input
+              label="Account Number"
+              id="company_account_number"
+              register={register('company_account_number')}
+            />
+            <Input
+              label="Bank Name"
+              id="company_bank_name"
+              register={register('company_bank_name')}
+              className="sm:col-span-2"
+            />
+            <Input
+              label="Branch"
+              id="company_branch"
+              register={register('company_branch')}
+            />
+            <Input
+              label="SWIFT Code"
+              id="company_swift"
+              register={register('company_swift')}
+            />
+          </div>
+
+          {/* ── 6. Intermediate / Correspondent Bank ───────────────────────── */}
+          <SectionHeader title="6. Intermediate / Correspondent Bank" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Input
               label="Intermediate Bank Name"
@@ -252,7 +324,7 @@ export default function ProformaInvoiceFormComponent({ shipmentId }: ProformaInv
         <div className="hidden xl:block w-[580px] shrink-0">
           <div className="sticky top-6">
             <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm overflow-auto max-h-[85vh]">
-              <PDFPreviewViewer shipmentId={shipmentId} docType="proforma_invoice" data={control._formValues} />
+              <PDFPreviewViewer shipmentId={shipmentId} docType="proforma_invoice" data={previewData} />
             </div>
           </div>
         </div>

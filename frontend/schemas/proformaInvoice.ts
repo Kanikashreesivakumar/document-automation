@@ -18,6 +18,12 @@ export const proformaInvoiceSchema = z.object({
   intermediate_bank_swift: strO(),
   intermediate_bank_routing_number: strO(),
   correspondent_bank: strO(),
+  // Company bank details (pre-filled with defaults, editable by user)
+  company_account_name:   strO(),
+  company_account_number: strO(),
+  company_bank_name:      strO(),
+  company_branch:         strO(),
+  company_swift:          strO(),
 });
 
 export type ProformaInvoiceForm = z.infer<typeof proformaInvoiceSchema>;

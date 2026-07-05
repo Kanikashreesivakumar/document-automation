@@ -16,7 +16,13 @@ commands = [
     "ALTER TABLE products ADD COLUMN egg_size VARCHAR(100);",
     "ALTER TABLE products ADD COLUMN pan_number VARCHAR(100);",
     "ALTER TABLE products ADD COLUMN gstin VARCHAR(100);",
-    "ALTER TABLE products ADD COLUMN hsn_code VARCHAR(100);"
+    "ALTER TABLE products ADD COLUMN hsn_code VARCHAR(100);",
+    "ALTER TABLE products ADD COLUMN production_duration VARCHAR(50);",
+    "ALTER TABLE proforma_invoices ADD COLUMN company_account_name VARCHAR(200);",
+    "ALTER TABLE proforma_invoices ADD COLUMN company_account_number VARCHAR(100);",
+    "ALTER TABLE proforma_invoices ADD COLUMN company_bank_name VARCHAR(200);",
+    "ALTER TABLE proforma_invoices ADD COLUMN company_branch VARCHAR(100);",
+    "ALTER TABLE proforma_invoices ADD COLUMN company_swift VARCHAR(50);"
 ]
 
 with engine.connect() as conn:

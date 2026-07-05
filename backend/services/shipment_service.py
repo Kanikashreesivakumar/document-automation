@@ -169,12 +169,23 @@ def save_shipment_data(shipment_id: str, data: ShipmentDataCreate, db: Session) 
     d = data.model_dump()
 
     # ── Run calculations ───────────────────────────────────────────────────────
-    cartons             = d.get("cartons") or 0
-    trays_per_carton    = d.get("trays_per_carton") or 0
-    eggs_per_tray       = d.get("eggs_per_tray") or 0
-    rate_per_egg_usd    = d.get("rate_per_egg_usd") or 0.0
-    net_wt_per_carton   = d.get("net_weight_per_carton") or 0.0
-    gross_wt_per_carton = d.get("gross_weight_per_carton") or 0.0
+    # Fallback to existing records for missing fields in partial updates (e.g. from saveDraft)
+    d = data.model_dump(exclude_unset=True)
+    
+    pkg_repo = PackageRepository(db)
+    pkg = pkg_repo.get(shipment_id)
+    cartons             = d.get("cartons") if "cartons" in d else (pkg.cartons if pkg and pkg.cartons is not None else 0)
+    trays_per_carton    = d.get("trays_per_carton") if "trays_per_carton" in d else (pkg.trays_per_carton if pkg and pkg.trays_per_carton is not None else 0)
+    eggs_per_tray       = d.get("eggs_per_tray") if "eggs_per_tray" in d else (pkg.eggs_per_tray if pkg and pkg.eggs_per_tray is not None else 0)
+
+    pri_repo = PricingRepository(db)
+    pri = pri_repo.get(shipment_id)
+    rate_per_egg_usd    = d.get("rate_per_egg_usd") if "rate_per_egg_usd" in d else (pri.rate_per_egg_usd if pri and pri.rate_per_egg_usd is not None else 0.0)
+
+    wt_repo = WeightRepository(db)
+    wt = wt_repo.get(shipment_id)
+    net_wt_per_carton   = d.get("net_weight_per_carton") if "net_weight_per_carton" in d else (wt.net_weight_per_carton if wt and wt.net_weight_per_carton is not None else 0.0)
+    gross_wt_per_carton = d.get("gross_weight_per_carton") if "gross_weight_per_carton" in d else (wt.gross_weight_per_carton if wt and wt.gross_weight_per_carton is not None else 0.0)
 
     calc = compute_all(
         cartons=cartons,
@@ -225,6 +236,7 @@ def save_shipment_data(shipment_id: str, data: ShipmentDataCreate, db: Session) 
         "shipment_declaration": d.get("shipment_declaration"),
         "production_date":      d.get("production_date"),
         "expiry_date":          d.get("expiry_date"),
+        "production_duration":  d.get("production_duration"),
         "lot_number":           d.get("lot_number"),
         "epcg_licence_number":  d.get("epcg_licence_number"),
         "dt":                   d.get("dt"),

@@ -11,7 +11,6 @@ export const exportInsuranceSchema = z.object({
   sum_assured: z.string().optional(),
   dollar_value: z.string().optional(),
   port_of_delivery: z.string().optional(),
-  insurance_remarks: z.string().optional(),
 });
 
 export type ExportInsuranceFormData = z.infer<typeof exportInsuranceSchema>;

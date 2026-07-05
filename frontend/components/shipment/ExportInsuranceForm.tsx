@@ -51,7 +51,6 @@ export default function ExportInsuranceForm({ shipmentId }: ExportInsuranceFormP
       sum_assured:          ei.sum_assured || '',
       dollar_value:         ei.dollar_value || '',
       port_of_delivery:     ei.port_of_delivery || '',
-      insurance_remarks:    ei.insurance_remarks || '',
     });
   }, [shipment, reset]);
 
@@ -66,7 +65,6 @@ export default function ExportInsuranceForm({ shipmentId }: ExportInsuranceFormP
   const w_sum_assured = useWatch({ control, name: 'sum_assured' });
   const w_dollar_value = useWatch({ control, name: 'dollar_value' });
   const w_port_of_delivery = useWatch({ control, name: 'port_of_delivery' });
-  const w_insurance_remarks = useWatch({ control, name: 'insurance_remarks' });
 
   const onSubmit = async (data: ExportInsuranceFormData) => {
     setIsSubmitting(true);
@@ -125,16 +123,6 @@ export default function ExportInsuranceForm({ shipmentId }: ExportInsuranceFormP
           <div className="space-y-4">
             <Input label="Sum Assured" register={register('sum_assured')} error={errors.sum_assured?.message} placeholder="e.g. INR 25,00,000" />
             <Input label="Dollar Value" register={register('dollar_value')} error={errors.dollar_value?.message} placeholder="e.g. USD 30,000" />
-            
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Insurance Remarks (Optional)</label>
-              <textarea
-                {...register('insurance_remarks')}
-                rows={2}
-                className="w-full px-3 py-2 bg-white text-gray-900 border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                placeholder="Optional remarks..."
-              />
-            </div>
           </div>
 
           <FormNavigator

@@ -45,6 +45,7 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
     handleSubmit,
     control,
     reset,
+    getValues,
     formState: { errors },
   } = useForm<ShipmentDataForm>({
     resolver: zodResolver(shipmentDataSchema),
@@ -96,6 +97,7 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
       shipment_declaration: prod.shipment_declaration || '',
       production_date:      prod.production_date || '',
       expiry_date:          prod.expiry_date || '',
+      production_duration:  prod.production_duration || '',
       lot_number:           prod.lot_number || '',
       epcg_licence_number:  prod.epcg_licence_number || '',
       dt:                   prod.dt || '',
@@ -150,6 +152,7 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
   const wShipmentDeclaration        = useWatch({ control, name: 'shipment_declaration' });
   const wProductionDate             = useWatch({ control, name: 'production_date' });
   const wExpiryDate                 = useWatch({ control, name: 'expiry_date' });
+  const wProductionDuration         = useWatch({ control, name: 'production_duration' });
   const wLotNumber                  = useWatch({ control, name: 'lot_number' });
   const wEpcgLicenceNumber          = useWatch({ control, name: 'epcg_licence_number' });
   const wDt                         = useWatch({ control, name: 'dt' });
@@ -185,7 +188,7 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
   const handleSaveDraft = useCallback(async () => {
     setIsSubmitting(true);
     try {
-      const values = control._formValues as ShipmentDataForm;
+      const values = getValues();
       await shipmentApi.saveShipmentData(shipmentId, values as Record<string, unknown>);
       setToast({ message: 'Draft saved.', type: 'success' });
     } catch {
@@ -425,6 +428,12 @@ export default function ShipmentDataFormComponent({ shipmentId }: ShipmentDataFo
               label="Expiry Date"
               id="expiry_date"
               register={register('expiry_date')}
+            />
+            <Input
+              label="Production / Expiry Duration"
+              id="production_duration"
+              register={register('production_duration')}
+              placeholder="e.g. THREE MONTHS"
             />
             <Input
               label="Lot Number"

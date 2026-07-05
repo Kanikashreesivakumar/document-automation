@@ -78,6 +78,7 @@ class ShipmentDataCreate(BaseModel):
     shipment_declaration: Optional[str] = None
     production_date: Optional[str] = None
     expiry_date: Optional[str] = None
+    production_duration: Optional[str] = None
     lot_number: Optional[str] = None
     epcg_licence_number: Optional[str] = None
     dt: Optional[str] = None
@@ -134,6 +135,13 @@ class ProformaInvoiceCreate(BaseModel):
     intermediate_bank_routing_number: Optional[str] = None
     correspondent_bank: Optional[str] = None
 
+    # Company bank details (user-editable; defaults come from frontend pre-fill)
+    company_account_name:   Optional[str] = None
+    company_account_number: Optional[str] = None
+    company_bank_name:      Optional[str] = None
+    company_branch:         Optional[str] = None
+    company_swift:          Optional[str] = None
+
 
 class ProformaInvoiceRead(ProformaInvoiceCreate):
     id: str
@@ -178,7 +186,6 @@ class ExportInsuranceCreate(BaseModel):
     sum_assured: Optional[str] = None
     dollar_value: Optional[str] = None
     port_of_delivery: Optional[str] = None
-    insurance_remarks: Optional[str] = None
 
 
 class ExportInsuranceRead(ExportInsuranceCreate):
@@ -245,6 +252,7 @@ class ProductRead(BaseModel):
     shipment_declaration: Optional[str] = None
     production_date: Optional[str] = None
     expiry_date: Optional[str] = None
+    production_duration: Optional[str] = None
     lot_number: Optional[str] = None
     epcg_licence_number: Optional[str] = None
     dt: Optional[str] = None

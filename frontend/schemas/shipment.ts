@@ -57,6 +57,7 @@ export const shipmentDataSchema = z.object({
   shipment_declaration: strO(),
   production_date:      strO(),
   expiry_date:          strO(),
+  production_duration:  strO(),
   lot_number:           strO(),
   epcg_licence_number:  strO(),
   dt:                   strO(),

@@ -117,6 +117,13 @@ class ProformaInvoice(Base):
     intermediate_bank_routing_number = Column(String(100))
     correspondent_bank = Column(String(200))
 
+    # Company bank details (user-editable, defaulted from COMPANY_BANK constants)
+    company_account_name   = Column(String(200))
+    company_account_number = Column(String(100))
+    company_bank_name      = Column(String(200))
+    company_branch         = Column(String(100))
+    company_swift          = Column(String(50))
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -230,6 +237,7 @@ class Product(Base):
     shipment_declaration = Column(Text)
     production_date      = Column(String(50))
     expiry_date          = Column(String(50))
+    production_duration  = Column(String(50))
     lot_number           = Column(String(100))
     epcg_licence_number  = Column(String(100))
     dt                   = Column(String(100))

@@ -30,6 +30,16 @@ STATIC_PRODUCT = {
     "dbk_clause":  "This shipment to covering under DBK scheme.",
 }
 
+# ─── Company bank constants (never editable by user) ─────────────────────────
+COMPANY_BANK = {
+    "account_name":   "RASI FOODS",
+    "account_number": "50200082616067",
+    "bank_name":      "HDFC BANK LTD",
+    "branch":         "NAMAKKAL",
+    "swift_code":     "HDFCINBB",
+    "ifsc":           "HDFC0001234",
+}
+
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,13 +58,72 @@ def _fmt_number(val: Any, decimals: int = 2) -> str:
         return str(val)
 
 
-def _fmt_int(val: Any) -> str:
-    if val is None:
-        return ""
-    try:
-        return f"{int(val):,}"
-    except (ValueError, TypeError):
-        return str(val)
+import re
+
+def _clean_number(s: Any) -> float:
+    if not s: return 0.0
+    s_clean = re.sub(r'[^\d.]', '', str(s))
+    try: return float(s_clean)
+    except ValueError: return 0.0
+
+def _words_under_thousand(n: int) -> str:
+    ONES = ["", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN"]
+    TENS = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY"]
+    if n < 20: return ONES[n]
+    if n < 100:
+        t, o = divmod(n, 10)
+        return TENS[t] + (" " + ONES[o] if o else "")
+    h, r = divmod(n, 100)
+    return ONES[h] + " HUNDRED" + (" AND " + _words_under_thousand(r) if r else "")
+
+def _indian_words(n: int) -> str:
+    if n == 0: return "ZERO"
+    parts = []
+    crores, n = divmod(n, 10000000)
+    lakhs, n = divmod(n, 100000)
+    thousands, n = divmod(n, 1000)
+    if crores: parts.append(_words_under_thousand(crores) + " CRORE")
+    if lakhs: parts.append(_words_under_thousand(lakhs) + " LAKH")
+    if thousands: parts.append(_words_under_thousand(thousands) + " THOUSAND")
+    if n: parts.append(_words_under_thousand(n))
+    return " ".join(parts)
+
+def _intl_words(n: int) -> str:
+    if n == 0: return "ZERO"
+    parts = []
+    billions, n = divmod(n, 1000000000)
+    millions, n = divmod(n, 1000000)
+    thousands, n = divmod(n, 1000)
+    if billions: parts.append(_words_under_thousand(billions) + " BILLION")
+    if millions: parts.append(_words_under_thousand(millions) + " MILLION")
+    if thousands: parts.append(_words_under_thousand(thousands) + " THOUSAND")
+    if n: parts.append(_words_under_thousand(n))
+    return " ".join(parts)
+
+def _format_indian(n: int) -> str:
+    s = str(n)
+    if len(s) <= 3: return s
+    last3 = s[-3:]
+    rest = s[:-3]
+    parts = []
+    while len(rest) > 2:
+        parts.insert(0, rest[-2:])
+        rest = rest[:-2]
+    if rest: parts.insert(0, rest)
+    return ",".join(parts) + "," + last3
+
+def get_sum_assured(s: Any) -> tuple[str, str]:
+    num = _clean_number(s)
+    if not num: return "", ""
+    i_num = int(num)
+    return f"Rs. {_format_indian(i_num)}", f"({_indian_words(i_num)} ONLY)"
+
+def get_dollar_value(s: Any) -> tuple[str, str]:
+    num = _clean_number(s)
+    if not num: return "", ""
+    i_num = int(num)
+    return f"$ {i_num:,}", f"(US$: {_intl_words(i_num)} DOLLARS ONLY)"
+
 
 
 # ─── Base context builder ─────────────────────────────────────────────────────
@@ -91,50 +160,31 @@ def _build_base_context(shipment: dict) -> dict:
     lot_number = _s(prod.get("lot_number"))
     epcg_licence_no = _s(prod.get("epcg_licence_number"))
     dt = _s(prod.get("dt"))
+    prod_duration = _s(prod.get("production_duration"))
+    duration_str = f" ({prod_duration})" if prod_duration else ""
 
-    description_of_goods_text = f"""FRESH WHITE SHELL TABLE EGGS (CHICKEN).
+    description_of_goods_text = f"""FRESH WHITE SHELL TABLE EGGS (CHICKEN)
 {shipment_decl}
-TOTAL {cartons_str} CARTONS,
-{trays_per_carton_str} TRAYS IN EACH CARTON
 
-{eggs_per_tray_str} EGGS IN EACH TRAY
-{eggs_per_carton_str} EGGS IN EACH BOX
+Total Cartons      : {cartons_str}
+Trays per Carton   : {trays_per_carton_str}
+Eggs per Tray      : {eggs_per_tray_str}
+Eggs per Carton    : {eggs_per_carton_str}
+Total Eggs         : {total_eggs_str}
 
-EACH CARTON PRINTED WITH
-PRODUCTION DATE & EXPIRY DATE.
+Each carton printed with production date
+and expiry date{duration_str}.
 
-TOTAL {cartons_str} X {eggs_per_carton_str}
-=
-{total_eggs_str} EGGS
-
-{container_type}
-
-PAN No:
-{pan_no}
-
-GSTIN No:
-{gstin_no}
-
-HSN CODE:
-{hsn_code}
-
-EGG SIZE:
-{egg_size}
-
-DATE OF PRODUCTION:
-{production_date}
-
-DATE OF EXPIRY:
-{expiry_date}
-
-LOT NO:
-{lot_number}
-
-EPCG LICENCE NO:
-{epcg_licence_no}
-
-DT:
-{dt}"""
+Container Type     : {container_type}
+PAN No             : {pan_no}
+GSTIN              : {gstin_no}
+HSN Code           : {hsn_code}
+Egg Size           : {egg_size}
+Production Date    : {production_date}
+Expiry Date        : {expiry_date}
+Lot Number         : {lot_number}
+EPCG Licence No    : {epcg_licence_no}
+DT                 : {dt}"""
 
     return {
         "shipment_number": _s(shipment.get("shipment_number")),
@@ -210,7 +260,7 @@ DT:
         
         # Pricing & Weight
         "rate_per_egg_usd":     _fmt_number(pri.get("rate_per_egg_usd"), 6),
-        "amount_usd":           _fmt_number(pri.get("amount_usd"), 2),
+        "amount_usd":           f"$ {_fmt_number(pri.get('amount_usd'), 2)}" if pri.get("amount_usd") else "",
         "amount_in_words":      _s(pri.get("amount_in_words")),
         "net_weight":               _fmt_number(wt.get("net_weight"), 3),
         "gross_weight":             _fmt_number(wt.get("gross_weight"), 3),
@@ -237,8 +287,10 @@ DT:
 
         # Export Insurance specifics
         "date": _s(ei.get("date")),
-        "sum_assured": _s(ei.get("sum_assured")),
-        "dollar_value": _s(ei.get("dollar_value")),
+        "sum_assured": get_sum_assured(ei.get("sum_assured"))[0],
+        "sum_assured_in_words": get_sum_assured(ei.get("sum_assured"))[1],
+        "dollar_value": get_dollar_value(ei.get("dollar_value"))[0],
+        "dollar_value_in_words": get_dollar_value(ei.get("dollar_value"))[1],
         "quantity_of_goods": f"{pkg.get('cartons') or 0} CARTONS",
         "port_of_delivery": _s(ei.get("port_of_delivery")) or _s(det.get("port_of_discharge")),
         "risk_cover": _s(ei.get("risk_cover"), "ICCA"),
@@ -280,6 +332,23 @@ DT:
         "intermediate_bank_routing_number": _s(pi.get("intermediate_bank_routing_number")),
         "correspondent_bank": _s(pi.get("correspondent_bank")),
         "production_date": _s(prod.get("production_date")) or _s(pi.get("expiry_date")),
+
+        # Company bank details — from DB if user saved them, else fall back to constants
+        "company_account_name":   _s(pi.get("company_account_name"),   COMPANY_BANK["account_name"]),
+        "company_account_number": _s(pi.get("company_account_number"), COMPANY_BANK["account_number"]),
+        "company_bank_name":      _s(pi.get("company_bank_name"),      COMPANY_BANK["bank_name"]),
+        "company_branch":         _s(pi.get("company_branch"),         COMPANY_BANK["branch"]),
+        "company_swift":          _s(pi.get("company_swift"),          COMPANY_BANK["swift_code"]),
+
+        # Legacy aliases kept for backward compat (used by other mapping consumers)
+        "company_bank_account_name":   _s(pi.get("company_account_name"),   COMPANY_BANK["account_name"]),
+        "company_bank_account_number": _s(pi.get("company_account_number"), COMPANY_BANK["account_number"]),
+        "company_bank_branch":         _s(pi.get("company_branch"),         COMPANY_BANK["branch"]),
+        "company_bank_swift":          _s(pi.get("company_swift"),          COMPANY_BANK["swift_code"]),
+        "company_bank_ifsc":           COMPANY_BANK["ifsc"],
+
+        # Proforma payment summary (derived from pricing)
+        "total_payment": f"$ {_fmt_number(pri.get('amount_usd'), 2)}" if pri.get("amount_usd") else "",
     }
 
 def invoice_context(shipment: dict) -> dict:

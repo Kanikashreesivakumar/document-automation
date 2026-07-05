@@ -104,6 +104,27 @@ def extract_placeholders_from_doc(doc):
                         placeholders.add(match.group(1))
     return placeholders
 
+def add_professional_footer(doc):
+    doc.add_paragraph()
+    t9 = doc.add_table(rows=1, cols=2)
+    make_table_borders_invisible(t9)
+    c_decl = t9.cell(0, 0)
+    add_text(c_decl, "Declaration:", bold=True, size=9)
+    add_text(c_decl,
+        "We hereby certify that the goods described in this invoice are of Indian Origin "
+        "and that the particulars given in this invoice are true and correct.",
+        size=8)
+
+    c_sign = t9.cell(0, 1)
+    add_text(c_sign, "For RASI FOODS", bold=True, size=9, align=WD_ALIGN_PARAGRAPH.RIGHT)
+    add_text(c_sign, "\n\n", size=9)
+    add_text(c_sign, "Authorised Signatory & Company Seal", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+    add_text(c_sign, "{{ exporter_name }}", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+    add_text(c_sign, "{{ exporter_address }}", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+    add_text(c_sign, "Email: {{ exporter_email }}", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+    add_text(c_sign, "GSTIN: {{ exporter_gstin }}", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+    add_text(c_sign, "PAN: {{ exporter_pan }}", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
+
 def create_invoice_base(doc_path, title, is_proforma=False):
     doc = docx.Document()
     
@@ -222,8 +243,8 @@ def create_invoice_base(doc_path, title, is_proforma=False):
     add_text(goods_cell, "{{ description_of_goods }}")
     
     add_text(table_goods.cell(1, 1), "{{ quantity_of_goods }}", align=WD_ALIGN_PARAGRAPH.CENTER)
-    add_text(table_goods.cell(1, 2), "USD {{ rate_per_egg_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
-    add_text(table_goods.cell(1, 3), "USD {{ amount_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(table_goods.cell(1, 2), "$ {{ rate_per_egg_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(table_goods.cell(1, 3), "{{ amount_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
 
     doc.add_paragraph()
 
@@ -231,10 +252,12 @@ def create_invoice_base(doc_path, title, is_proforma=False):
     table_totals = doc.add_table(rows=1, cols=2)
     make_table_borders_invisible(table_totals)
     t_cells = table_totals.rows[0].cells
-    add_kv_pair(t_cells[0], "Amount Chargeable (in words)", "USD {{ amount_in_words }}")
+    add_kv_pair(t_cells[0], "Amount Chargeable (in words)", "{{ amount_in_words }}")
     
     add_kv_pair(t_cells[1], "Total Net Weight", "{{ net_weight }} KGS")
     add_kv_pair(t_cells[1], "Total Gross Weight", "{{ gross_weight }} KGS")
+
+    add_professional_footer(doc)
 
     # Save and verify
     placeholders = extract_placeholders_from_doc(doc)
@@ -331,6 +354,8 @@ def create_packing_list(doc_path):
     add_text(table_pack.cell(1, 3), "{{ net_weight }} KGS")
     add_text(table_pack.cell(1, 4), "{{ gross_weight }} KGS")
     add_text(table_pack.cell(1, 5), "{{ total_eggs }}")
+
+    add_professional_footer(doc)
     
     # Save and verify
     placeholders = extract_placeholders_from_doc(doc)
@@ -342,13 +367,204 @@ def create_packing_list(doc_path):
     doc.save(doc_path)
     print(f"Generated {doc_path}")
 
+def create_proforma_invoice(doc_path):
+    """
+    Build the expanded clean Proforma Invoice template.
+    Sections:
+      - Header (company logo)
+      - Title + Proforma reference info
+      - Buyer / Consignee / Notify Party
+      - Shipment Details
+      - Goods Table (Marks, Packages, Description, Qty, Rate, Amount)
+      - Totals & Amount in Words
+      - Bank Details (Company constants + Intermediate Bank)
+      - Payment Section
+      - Footer / Declaration
+    """
+    doc = docx.Document()
+
+    for section in doc.sections:
+        section.page_height = Cm(29.7)
+        section.page_width  = Cm(21.0)
+        section.left_margin  = Cm(1.27)
+        section.right_margin = Cm(1.27)
+        section.top_margin   = Cm(1.5)
+        section.bottom_margin = Cm(1.5)
+
+    add_header(doc, r'd:\Form Automation\backend\templates\header_img.jpeg')
+
+    # ── Title ──────────────────────────────────────────────────────────────────
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run("PROFORMA INVOICE")
+    apply_style(run, bold=True, size=14)
+    p.paragraph_format.space_after = Pt(8)
+
+    # ── Section 1: Exporter (left) + Proforma Reference (right) ───────────────
+    t1 = doc.add_table(rows=1, cols=2)
+    t1.autofit = False
+    t1.columns[0].width = Inches(3.5)
+    t1.columns[1].width = Inches(4.0)
+    make_table_borders_invisible(t1)
+
+    c_exp = t1.cell(0, 0)
+    add_text(c_exp, "Exporter:", bold=True, size=10)
+    add_text(c_exp, "{{ exporter_name }}", bold=True)
+    add_text(c_exp, "{{ exporter_address }}")
+    add_kv_pair(c_exp, "GSTIN",  "{{ exporter_gstin }}")
+    add_kv_pair(c_exp, "PAN",    "{{ exporter_pan }}")
+    add_kv_pair(c_exp, "IEC",    "{{ exporter_iec }}")
+    add_kv_pair(c_exp, "Email",  "{{ exporter_email }}")
+
+    c_ref = t1.cell(0, 1)
+    add_kv_pair(c_ref, "Proforma Invoice No",        "{{ proforma_invoice_no }}")
+    add_kv_pair(c_ref, "Date",                        "{{ invoice_date }}")
+    add_kv_pair(c_ref, "PO Number",                   "{{ po_number }}")
+    add_kv_pair(c_ref, "PO Date",                     "{{ po_date }}")
+    add_kv_pair(c_ref, "Exporter's Ref",              "{{ exporter_reference }}")
+    add_kv_pair(c_ref, "Other Reference",             "{{ other_reference }}")
+    add_kv_pair(c_ref, "Buyer's Order No & Date",     "{{ buyer_order_no_date }}")
+
+    doc.add_paragraph()
+
+    # ── Section 2: Consignee (left) + Buyer (right) ───────────────────────────
+    t2 = doc.add_table(rows=1, cols=2)
+    t2.autofit = False
+    t2.columns[0].width = Inches(3.75)
+    t2.columns[1].width = Inches(3.75)
+    make_table_borders_invisible(t2)
+
+    c_con = t2.cell(0, 0)
+    add_text(c_con, "Consignee:", bold=True, size=10)
+    add_text(c_con, "{{ consignee_name }}", bold=True)
+    add_text(c_con, "{{ consignee_address }}")
+    add_kv_pair(c_con, "TRN", "{{ consignee_trn }}")
+
+    c_buy = t2.cell(0, 1)
+    add_text(c_buy, "Buyer:", bold=True, size=10)
+    add_text(c_buy, "{{ buyer_name }}", bold=True)
+    add_text(c_buy, "{{ buyer_address }}")
+    add_kv_pair(c_buy, "TRN",     "{{ buyer_trn }}")
+    add_kv_pair(c_buy, "Country", "{{ buyer_country }}")
+
+    doc.add_paragraph()
+
+    # ── Section 3: Notify Party ───────────────────────────────────────────────
+    t3 = doc.add_table(rows=1, cols=1)
+    make_table_borders_invisible(t3)
+    c_np = t3.cell(0, 0)
+    add_text(c_np, "Notify Party:", bold=True, size=10)
+    add_text(c_np, "{{ notify_party }}", bold=True)
+    add_text(c_np, "{{ notify_party_address }}")
+
+    doc.add_paragraph()
+
+    # ── Section 4: Shipment Details ───────────────────────────────────────────
+    t4 = doc.add_table(rows=3, cols=4)
+    t4.style = 'Table Grid'
+
+    r0 = t4.rows[0].cells
+    add_kv_pair(r0[0], "Pre-Carriage By",    "{{ pre_carriage_by }}")
+    add_kv_pair(r0[1], "Place of Receipt",   "{{ place_of_receipt }}")
+    add_kv_pair(r0[2], "Country of Origin",  "{{ country_of_origin }}")
+    add_kv_pair(r0[3], "Country of Dest.",   "{{ country_of_destination }}")
+
+    r1 = t4.rows[1].cells
+    add_kv_pair(r1[0], "Vessel / Flight",    "{{ vessel_flight_no }}")
+    add_kv_pair(r1[1], "Port of Loading",    "{{ port_of_loading }}")
+    add_kv_pair(r1[2], "Port of Discharge",  "{{ port_of_discharge }}")
+    add_kv_pair(r1[3], "Final Destination",  "{{ final_destination }}")
+
+    r2 = t4.rows[2].cells
+    r2[0].merge(r2[3])
+    add_kv_pair(r2[0], "Terms of Delivery & Payment", "{{ terms_of_delivery }}")
+
+    doc.add_paragraph()
+
+    # ── Section 5: Goods Table ────────────────────────────────────────────────
+    # Columns: Marks & Numbers | No & Kind of Packages | Description | Qty | Rate | Amount
+    t5 = doc.add_table(rows=2, cols=6)
+    t5.style = 'Table Grid'
+
+    hdrs = ["Marks &\nNumbers", "No & Kind\nof Packages", "Description of Goods",
+            "Quantity", "Rate\n(USD/Egg)", "Amount"]
+    for i, h in enumerate(hdrs):
+        add_text(t5.cell(0, i), h, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    add_text(t5.cell(1, 0), "{{ container_no }}")
+    add_text(t5.cell(1, 1), "{{ no_and_kind_of_packages }}\n{{ container_type }}")
+    add_text(t5.cell(1, 2), "{{ description_of_goods }}")
+    add_text(t5.cell(1, 3), "{{ quantity_of_goods }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(t5.cell(1, 4), "$ {{ rate_per_egg_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+    add_text(t5.cell(1, 5), "{{ amount_usd }}", align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    doc.add_paragraph()
+
+    # ── Section 6: Totals row ─────────────────────────────────────────────────
+    t6 = doc.add_table(rows=1, cols=2)
+    make_table_borders_invisible(t6)
+    tc0 = t6.rows[0].cells[0]
+    tc1 = t6.rows[0].cells[1]
+    add_kv_pair(tc0, "Amount Chargeable (in words)", "{{ amount_in_words }}")
+    add_kv_pair(tc1, "Total Net Weight",   "{{ net_weight }} KGS")
+    add_kv_pair(tc1, "Total Gross Weight", "{{ gross_weight }} KGS")
+    add_kv_pair(tc1, "Total Payment",      "{{ total_payment }}")
+
+    doc.add_paragraph()
+
+    # ── Section 7: Payment Terms ──────────────────────────────────────────────
+    t7 = doc.add_table(rows=1, cols=2)
+    make_table_borders_invisible(t7)
+    tp0 = t7.rows[0].cells[0]
+    tp1 = t7.rows[0].cells[1]
+    add_kv_pair(tp0, "Payment Terms", "{{ payment_terms }}")
+    add_kv_pair(tp1, "Expiry Date",   "{{ expiry_date }}")
+
+    doc.add_paragraph()
+
+    # ── Section 8: Bank Details ───────────────────────────────────────────────
+    t8 = doc.add_table(rows=1, cols=2)
+    t8.style = 'Table Grid'
+
+    c_co_bank = t8.cell(0, 0)
+    add_text(c_co_bank, "Company Bank Details", bold=True, size=10)
+    add_kv_pair(c_co_bank, "Account Name",   "{{ company_account_name }}")
+    add_kv_pair(c_co_bank, "Account Number", "{{ company_account_number }}")
+    add_kv_pair(c_co_bank, "Bank Name",      "{{ company_bank_name }}")
+    add_kv_pair(c_co_bank, "Branch",         "{{ company_branch }}")
+    add_kv_pair(c_co_bank, "SWIFT Code",     "{{ company_swift }}")
+
+    c_int_bank = t8.cell(0, 1)
+    add_text(c_int_bank, "Intermediate / Correspondent Bank", bold=True, size=10)
+    add_kv_pair(c_int_bank, "Bank Name",        "{{ intermediate_bank_name }}")
+    add_kv_pair(c_int_bank, "Account Number",   "{{ intermediate_bank_account_number }}")
+    add_kv_pair(c_int_bank, "SWIFT",            "{{ intermediate_bank_swift }}")
+    add_kv_pair(c_int_bank, "Routing Number",   "{{ intermediate_bank_routing_number }}")
+    add_kv_pair(c_int_bank, "Correspondent",    "{{ correspondent_bank }}")
+
+    doc.add_paragraph()
+
+    add_professional_footer(doc)
+
+    # ── Validate and save ──────────────────────────────────────────────────────
+    placeholders = extract_placeholders_from_doc(doc)
+    missing = placeholders - VALID_KEYS
+    if missing:
+        print(f"ERROR in Proforma Invoice: Missing backend mappings for: {missing}")
+        import sys
+        sys.exit(1)
+
+    doc.save(doc_path)
+    print(f"Generated {doc_path}")
+
+
 def generate_all_clean_templates():
     import os
     backend_dir = os.path.dirname(os.path.abspath(__file__))
     templates_dir = os.path.join(backend_dir, 'templates')
-    
+
     create_invoice_base(os.path.join(templates_dir, 'invoice.docx'), "COMMERCIAL INVOICE")
-    create_invoice_base(os.path.join(templates_dir, 'proforma_invoice.docx'), "PROFORMA INVOICE", is_proforma=True)
+    create_proforma_invoice(os.path.join(templates_dir, 'proforma_invoice.docx'))
     create_packing_list(os.path.join(templates_dir, 'packing_list.docx'))
 
 if __name__ == "__main__":
